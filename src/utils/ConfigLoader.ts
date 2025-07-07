@@ -6,18 +6,20 @@ import {Logger} from "./Logger";
 import * as yaml from 'yaml';
 
 export class ConfigManager {
-    static defaultClients: Clients = {
-        clients: [
-            {
-                'client_type': 'onebot',
-                'client_id': 'survival',
-                'client_token': '',
-                'client_name': '生存服'
-            }
-        ]
-    };
-
-    static defaultConfig = {}
+    // static defaultClients: Clients = {
+    //     clients: [
+    //         {
+    //             'client_type': 'onebot',
+    //             'client_id': 'survival',
+    //             'client_token': '',
+    //             'client_name': '生存服'
+    //         }
+    //     ]
+    // };
+    //
+    // static defaultConfig: Config = {
+    //     'qq_active_group': 1016791777
+    // }
 
 
     private static serverConfig: Config | undefined;
@@ -26,9 +28,10 @@ export class ConfigManager {
     static getServerConfig(): Config {
         if (this.serverConfig) return this.serverConfig;
         /** 如果配置文件和接口不匹配，需要补齐默认的值并且输出回相关的配置文件 */
-        const configPath = path.resolve(process.cwd(), 'clients.yaml');
+        const configPath = path.resolve(process.cwd(), 'config.yaml');
         const fileContent = fs.readFileSync(configPath, 'utf8');
-        this.serverConfig = yaml.parse(fileContent) as typeof ConfigManager.defaultClients;
+        this.serverConfig = yaml.parse(fileContent) as Config;
+        Logger.debug("配置文件已加载", this.serverConfig);
         return this.serverConfig;
     }
 

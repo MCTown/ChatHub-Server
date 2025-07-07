@@ -2,10 +2,12 @@ import {WebSocketServer} from "ws";
 import {IOneBotConnection, IOneBotServer} from "./interface/IOneBotConnection";
 import {Logger} from "./utils/Logger";
 import {ConfigManager} from "./utils/ConfigLoader";
+import {Config} from "./interface/Config";
+
+const config: Config = ConfigManager.getServerConfig();
 
 export class OnebotServer implements IOneBotServer {
     private wss?: WebSocketServer;
-    private connectionHandlers: Array<(conn: IOneBotConnection) => void> = [];
 
     private wsClients: Array<IOneBotConnection> = [];
     private clientConfig = ConfigManager.getClientsList()
@@ -19,7 +21,7 @@ export class OnebotServer implements IOneBotServer {
         Logger.info(`[OneBotServer] listening on ws://0.0.0.0:${port}/onebot/chathub`);
 
         this.wss.on('connection', (ws, req) => {
-            let verifyReceived: Boolean = false
+            let client_id: string | null = null
             Logger.info('[OneBotServer] 客户端已连接:', req.socket.remoteAddress);
 
             // 把 ws 包装成 IOneBotConnection
@@ -30,22 +32,6 @@ export class OnebotServer implements IOneBotServer {
                     }
                 },
             };
-
-            // 调用外部注册的 onConnection 回调
-            this.connectionHandlers.forEach(fn => fn(conn));
-
-            /**
-             * 如果10s内没有收到 verify 消息，则断开连接
-             */
-            setTimeout(() => {
-                if (!verifyReceived) {
-                    Logger.warn('[OneBotServer] 连接超时，已断开连接。根据onebot协议，客户端连接后应当发送 verify 消息，例如\n{\n' +
-                        '  action: \'verify\',\n' +
-                        '  params: { token: \'\', self_id: \'chathub_client_1\' }\n' +
-                        '}\n');
-                    ws.close(1000, 'Connection timeout');
-                }
-            }, 10000)
             /**
              * 接受客户端消息
              */
@@ -55,54 +41,76 @@ export class OnebotServer implements IOneBotServer {
                 try {
                     const msg = JSON.parse(raw);
                     console.log('[OneBotServer] 收到 JSON 消息：', msg);
-                    if (msg.action) {
-                        if (msg.action === 'verify') {
-                            let client_id: string | null = null
-                            Logger.debug("接收到 verify 消息，client_id:", msg.params.self_id);
-                            verifyReceived = true;
+                    if (msg.meta_event_type) {
+                        if (msg.meta_event_type === 'lifecycle' || msg.meta_event_type === 'heartbeat') {
+                            if (client_id !== null) return;
+                            Logger.debug("接收到 verify 消息，client_id:", msg.self_id);
                             /**
                              * 进行验证，如果验证通过，则将该连接添加到 wsClients 中
                              */
                             for (const clientInfo of this.clientsList) {
-                                if (clientInfo.client_id === msg.params.self_id) {
+                                if (clientInfo.client_id === msg.self_id.toString()) {
                                     /**
                                      * client_id 匹配，开始验证 token
                                      */
-                                    if (msg.params.token === null) {
-                                        console.log(`[OneBotServer] 客户端 ${clientInfo.client_id} 的 token 为空，可能无法正常工作`);
-                                    }
-                                    client_id = msg.params.self_id;
-                                    const token = msg.params.token;
-                                    if (clientInfo.client_token !== token) {
-                                        Logger.warn(`[OneBotServer] 客户端 ${clientInfo.client_id} 的 token 验证失败，断开连接`);
-                                        ws.close(1000, 'Token verification failed');
-                                        return;
-                                    }
+                                    // if (msg.params.token === null) {
+                                    //     console.log(`[OneBotServer] 客户端 ${clientInfo.client_id} 的 token 为空，可能无法正常工作`);
+                                    // }
+                                    client_id = msg.self_id;
+                                    // const token = msg.params.token;
+                                    // if (clientInfo.client_token !== token) {
+                                    //     Logger.warn(`[OneBotServer] 客户端 ${clientInfo.client_id} 的 token 验证失败，断开连接`);
+                                    //     ws.close(1000, 'Token verification failed');
+                                    //     return;
+                                    // }
                                     Logger.debug(`客户端成功验证，${client_id}已连接`);
                                     /**
                                      * 处理验证通过的客户端连接
                                      */
                                     this.wsClients.push(conn);
                                     return;
-                                } else Logger.debug(`${clientInfo.client_id} 不匹配 ${msg.params.self_id}`);
+                                } else Logger.debug(`${clientInfo.client_id} 不匹配 ${msg.self_id}`);
                             }
-                            Logger.warn(`${msg.params.self_id} 已连接，但是该客户端不在 clients.yaml 中，断开当前连接`);
+                            Logger.warn(`${msg.self_id} 已连接，但是该客户端不在 clients.yaml 中，断开当前连接`);
                             ws.close(1000, 'Client not found in clients.yaml');
                             return;
                         }
+                        // else if (msg.action === 'get_login_info'){
+                        //     ws.send(JSON.stringify({
+                        //         "retcode": 0,
+                        //         "data": {
+                        //             "user_id": "chathub",
+                        //             "nickname": "Chathub",
+                        //         },
+                        //         "echo": msg.echo || "0",
+                        //     })
+                        // );
+                        // }
+                        // else if (msg.action === 'get_guild_service_profile'){
+                        //
+                        // }
                     } else if (msg.self_id) {
-                        if (!verifyReceived) {
-                            Logger.warn(`收到消息，但未验证连接，消息不予处理：${msg}`);
+                        if (client_id === null) {
+                            Logger.warn(`收到消息，但未验证连接，消息不予处理：${JSON.stringify(msg)}`);
                             return;
                         }
                         /**
                          * 处理接收消息的逻辑
+                         * 不予转发来源不是chathub或不是qq_active_group的消息
                          */
+                        Logger.error(msg.group_id === config.qq_active_group || msg.group_id === 'chathub')
+                        if (!(msg.group_id === config.qq_active_group || msg.group_id === 'chathub')) return;
+
+                        const data = msg.message
                         const payload = {
+                            "sender": {
+                                "user_id": msg.sender.user_id,
+                                "nickname": msg.sender.nickname
+                            },
                             "action": "send_group_msg",
                             "params": {
-                                "group_id": 1,
-                                "message": ["Hello! This is a test message from OneBotServer."],
+                                "group_id": config.qq_active_group,
+                                "message": data,
                             },
                             "echo": "0"
                         }
