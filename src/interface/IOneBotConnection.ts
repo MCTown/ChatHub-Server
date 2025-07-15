@@ -9,6 +9,8 @@ import WebSocket from 'ws';
  * 表示一个客户端连接（即你的 Python 脚本连接）
  */
 export interface IOneBotConnection {
+    client_id?: string;  // 可选的客户端 ID
+    client_type?: string; // 可选的客户端类型，例如 "onebot" "chathub" 等
     /** 向客户端发送一个 OneBot 格式的 JSON */
     send(payload: Record<string, any>): void;
 }

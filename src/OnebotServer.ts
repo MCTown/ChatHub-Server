@@ -3,6 +3,7 @@ import {IOneBotConnection, IOneBotServer} from "./interface/IOneBotConnection";
 import {Logger} from "./utils/Logger";
 import {ConfigManager} from "./utils/ConfigLoader";
 import {Config} from "./interface/Config";
+import {MessageFilter} from "./utils/MessageFilter";
 
 const config: Config = ConfigManager.getServerConfig();
 
@@ -40,7 +41,7 @@ export class OnebotServer implements IOneBotServer {
                 const raw = data.toString();
                 try {
                     const msg = JSON.parse(raw);
-                    console.log('[OneBotServer] 收到 JSON 消息：', msg);
+                    Logger.network.receive('收到 JSON 消息：', msg);
                     if (msg.meta_event_type) {
                         if (msg.meta_event_type === 'lifecycle' || msg.meta_event_type === 'heartbeat') {
                             if (client_id !== null) return;
@@ -67,7 +68,10 @@ export class OnebotServer implements IOneBotServer {
                                     /**
                                      * 处理验证通过的客户端连接
                                      */
+                                    conn.client_id = clientInfo.client_id;
+                                    conn.client_type = clientInfo.client_type;
                                     this.wsClients.push(conn);
+                                    Logger.info(`[OneBotServer] 客户端 ${clientInfo.client_id} 已注册，类型：${clientInfo.client_type}`);
                                     return;
                                 } else Logger.debug(`${clientInfo.client_id} 不匹配 ${msg.self_id}`);
                             }
@@ -89,7 +93,7 @@ export class OnebotServer implements IOneBotServer {
                         // else if (msg.action === 'get_guild_service_profile'){
                         //
                         // }
-                    } else if (msg.self_id) {
+                    } else if (msg.self_id) { // 通过判断 self_id 是否存在来区分是否为用户发的消息
                         if (client_id === null) {
                             Logger.warn(`收到消息，但未验证连接，消息不予处理：${JSON.stringify(msg)}`);
                             return;
@@ -98,23 +102,11 @@ export class OnebotServer implements IOneBotServer {
                          * 处理接收消息的逻辑
                          * 不予转发来源不是chathub或不是qq_active_group的消息
                          */
-                        Logger.error(msg.group_id === config.qq_active_group || msg.group_id === 'chathub')
                         if (!(msg.group_id === config.qq_active_group || msg.group_id === 'chathub')) return;
 
                         const data = msg.message
-                        const payload = {
-                            "sender": {
-                                "user_id": msg.sender.user_id,
-                                "nickname": msg.sender.nickname
-                            },
-                            "action": "send_group_msg",
-                            "params": {
-                                "group_id": config.qq_active_group,
-                                "message": data,
-                            },
-                            "echo": "0"
-                        }
-                        this.broadcast(payload, conn)
+
+                        this.broadcast(msg.sender.user_id, msg.sender.nickname, data, conn);
                     }
                 } catch (e) {
                     Logger.error(this.clientsList)
@@ -142,13 +134,28 @@ export class OnebotServer implements IOneBotServer {
 
     /**
      * 广播消息，向所有连接的客户端发送消息
-     * @param payload 要发送的消息内容，必须是一个 JSON 对象
+     * @param sender_id
+     * @param sender_name
+     * @param messages
      * @param conn 连接对象，表示当前的客户端连接，广播时会避开当前连接
      */
-    public broadcast(payload: {}, conn: IOneBotConnection): void {
+    public broadcast(sender_id:string,sender_name:string,messages:any[], conn: IOneBotConnection): void {
         this.wsClients.forEach(client => {
             if (client !== conn) { // 避免向当前连接发送消息
+                const payload = {
+                    "action": "send_group_msg",
+                    "params": {
+                        "group_id": config.qq_active_group,
+                        "message": MessageFilter.filterMessages(messages, <string>client.client_type),
+                    },
+                    "sender": {
+                        "user_id": sender_id,
+                        "nickname": sender_name
+                    },
+                    "echo": "0"
+                }
                 try {
+                    Logger.network.send('[OneBotServer] 广播消息到客户端:', client.client_id, payload);
                     client.send(payload);
                 } catch (e) {
                     Logger.error('[OneBotServer] 发送消息失败:', e);
