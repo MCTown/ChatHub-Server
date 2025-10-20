@@ -1,6 +1,7 @@
 import {Logger} from "./Logger";
 
 export class MessageFilter {
+    // 仅处理Message,不处理sender之类的数据
     static filterMessages(messages: any[], client_type: string): any[] {
         let processedMessages = [];
         for (let message of messages) {
@@ -62,7 +63,7 @@ export class MessageFilter {
                             Logger.warn(`未知客户端类型 ${client_type}，无法处理 at 消息`);
                     }
             }
-            Logger.debug('Messages:', processedMessages, 'Broadcast client Type:', client_type);
+            // Logger.debug('Messages:', processedMessages, 'Broadcast client Type:', client_type);
         }
         return processedMessages
     }

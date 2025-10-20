@@ -41,7 +41,7 @@ export class OnebotServer implements IOneBotServer {
                 const raw = data.toString();
                 try {
                     const msg = JSON.parse(raw);
-                    Logger.network.receive('收到 JSON 消息：', msg);
+                    // 心跳和生命周期消息用于验证连接
                     if (msg.meta_event_type) {
                         if (msg.meta_event_type === 'lifecycle' || msg.meta_event_type === 'heartbeat') {
                             if (client_id !== null) return;
@@ -54,46 +54,25 @@ export class OnebotServer implements IOneBotServer {
                                     /**
                                      * client_id 匹配，开始验证 token
                                      */
-                                    // if (msg.params.token === null) {
-                                    //     console.log(`[OneBotServer] 客户端 ${clientInfo.client_id} 的 token 为空，可能无法正常工作`);
-                                    // }
                                     client_id = msg.self_id;
-                                    // const token = msg.params.token;
-                                    // if (clientInfo.client_token !== token) {
-                                    //     Logger.warn(`[OneBotServer] 客户端 ${clientInfo.client_id} 的 token 验证失败，断开连接`);
-                                    //     ws.close(1000, 'Token verification failed');
-                                    //     return;
-                                    // }
                                     Logger.debug(`客户端成功验证，${client_id}已连接`);
                                     /**
                                      * 处理验证通过的客户端连接
                                      */
                                     conn.client_id = clientInfo.client_id;
                                     conn.client_type = clientInfo.client_type;
+                                    conn.client_name = clientInfo.client_name
                                     this.wsClients.push(conn);
                                     Logger.info(`[OneBotServer] 客户端 ${clientInfo.client_id} 已注册，类型：${clientInfo.client_type}`);
                                     return;
-                                } else Logger.debug(`${clientInfo.client_id} 不匹配 ${msg.self_id}`);
+                                } else Logger.debug(`配置的ID：${clientInfo.client_id} 不匹配 ${msg.self_id}`);
                             }
                             Logger.warn(`${msg.self_id} 已连接，但是该客户端不在 clients.yaml 中，断开当前连接`);
                             ws.close(1000, 'Client not found in clients.yaml');
                             return;
                         }
-                        // else if (msg.action === 'get_login_info'){
-                        //     ws.send(JSON.stringify({
-                        //         "retcode": 0,
-                        //         "data": {
-                        //             "user_id": "chathub",
-                        //             "nickname": "Chathub",
-                        //         },
-                        //         "echo": msg.echo || "0",
-                        //     })
-                        // );
-                        // }
-                        // else if (msg.action === 'get_guild_service_profile'){
-                        //
-                        // }
                     } else if (msg.self_id) { // 通过判断 self_id 是否存在来区分是否为用户发的消息
+                        Logger.network.receive('收到 JSON 消息：', msg);
                         if (client_id === null) {
                             Logger.warn(`收到消息，但未验证连接，消息不予处理：${JSON.stringify(msg)}`);
                             return;
@@ -105,8 +84,11 @@ export class OnebotServer implements IOneBotServer {
                         if (!(msg.group_id === config.qq_active_group || msg.group_id === 'chathub')) return;
 
                         const data = msg.message
-
-                        this.broadcast(msg.sender.user_id, msg.sender.nickname, data, conn);
+                        if (msg.sender.nickname === 'null') {
+                            this.broadcast(data, conn);
+                        } else {
+                            this.broadcast(data, conn, msg.sender.user_id, msg.sender.nickname);
+                        }
                     }
                 } catch (e) {
                     Logger.error(this.clientsList)
@@ -139,20 +121,38 @@ export class OnebotServer implements IOneBotServer {
      * @param messages
      * @param conn 连接对象，表示当前的客户端连接，广播时会避开当前连接
      */
-    public broadcast(sender_id:string,sender_name:string,messages:any[], conn: IOneBotConnection): void {
+    public broadcast(messages: any[], conn: IOneBotConnection, sender_id?: string, sender_name?: string): void {
+        // 在转发时, 不动消息体, 而是加上客户端标识符
+        // Logger.warn('start',messages,'stop')
+        if (sender_name){
+            messages.unshift({
+                type: 'text',
+                data: {
+                    text: `<${sender_name}> `
+                }
+            })
+        }
+        if (conn.client_name) {
+            messages.unshift({
+                type: 'text',
+                data: {
+                    text: `[${conn.client_name}] `
+                }
+            })
+        }
+
         this.wsClients.forEach(client => {
             if (client !== conn) { // 避免向当前连接发送消息
                 const payload = {
                     "action": "send_group_msg",
+                    "sender": {
+                        user_id: sender_id,
+                        nickname: sender_name
+                    },
                     "params": {
                         "group_id": config.qq_active_group,
                         "message": MessageFilter.filterMessages(messages, <string>client.client_type),
                     },
-                    "sender": {
-                        "user_id": sender_id,
-                        "nickname": sender_name
-                    },
-                    "echo": "0"
                 }
                 try {
                     Logger.network.send('[OneBotServer] 广播消息到客户端:', client.client_id, payload);

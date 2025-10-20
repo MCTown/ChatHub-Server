@@ -1,18 +1,18 @@
 # clients中填写每个客户端的配置
 clients:
   - client_type: "chathub" # 客户端类型 支持onebot koishi chathub
-    client_id: "chathub_client_1"
+    client_id: "survival"
     client_token: "1"
-    client_name: "25565服务端"
+    client_name: "生存服"
   - client_type: "chathub"
-    client_id: "chathub_client_2"
+    client_id: "creative"
     client_token: ""
-    client_name: "25565服务端"
+    client_name: "创造服"
   - client_type: "koishi"
     client_id: "koishi"
     client_token: ""
     client_name: "koishi服务端"
   - client_type: "onebot"
-    client_id: "2182528859"
+    client_id: "318881049" # 如果是onebot类型 这里填写onebot的qq号
     client_token: ""
     client_name: "onebot服务端"

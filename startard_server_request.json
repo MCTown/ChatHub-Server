@@ -1,0 +1,9 @@
+{
+  "action": "send_group_msg",
+  "params": {
+    "group_id": 1016791777,
+    "message": "msg",
+    "auto_escape": false
+  },
+  "echo": "0"
+}
