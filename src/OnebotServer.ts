@@ -128,12 +128,25 @@ export class OnebotServer implements IOneBotServer {
                                                     type: 'text',
                                                     data: {text: `已将QQ ${player_qq_id} 的MC账户更改为 ${player_name}`}
                                                 }], conn)
-
+                                                const old_uuid = (await db.getData(`/qq_to_uuid/${player_qq_id}`)).player_uuid
+                                                await db.delete(`/uuid_to_qq/${old_uuid}`)
+                                                await db.delete(`/qq_to_uuid/${player_qq_id}`)
                                             } else {
+                                                // 判断该uuid是否已被绑定
+                                                const uuid_exists = await db.exists(`/uuid_to_qq/${player_uuid}`);
+                                                if (uuid_exists) {
+                                                    const bound_qq = (await db.getData(`/uuid_to_qq/${player_uuid}`)).player_qq_id
+                                                    this.respond([{
+                                                        type: 'text',
+                                                        data: {text: `绑定失败，MC账户 ${player_name} 已被QQ ${bound_qq} 绑定`}
+                                                    }], conn)
+                                                    return
+                                                }
                                                 this.respond([{
                                                     type: 'text',
                                                     data: {text: `已绑定QQ ${player_qq_id} 的MC账户为 ${player_name}`}
                                                 }], conn)
+
                                             }
                                             await db.push(`/uuid_to_qq/${player_uuid}`, {player_qq_id})
                                             await db.push(`/qq_to_uuid/${player_qq_id}`, {player_uuid})
@@ -178,7 +191,7 @@ export class OnebotServer implements IOneBotServer {
 
                         } else if (msg.group_id === config.qq_active_group) {
                             // 来自 QQ 群的消息，添加昵称
-                            this.broadcast(data, conn, msg.sender.user_id, config.is_use_group_nickname ? msg.sender.card : msg.sender.nickname);
+                            this.broadcast(data, conn, msg.sender.user_id, (config.is_use_group_nickname && msg.sender.card !== '') ? msg.sender.card : msg.sender.nickname);
                         } else if (msg.group_id === 'chathub') {
                             // 来自 Chathub 的消息
                             this.broadcast(data, conn, msg.sender.user_id, msg.sender.nickname);
