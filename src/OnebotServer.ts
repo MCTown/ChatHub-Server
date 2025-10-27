@@ -2,10 +2,14 @@ import {WebSocketServer} from "ws";
 import {IOneBotConnection, IOneBotServer} from "./interface/IOneBotConnection";
 import {Logger} from "./utils/Logger";
 import {ConfigManager} from "./utils/ConfigLoader";
-import {Config} from "./interface/Config";
+import {Config as ServerConfig} from "./interface/Config";
 import {MessageFilter} from "./utils/MessageFilter";
+import {MessageElement, RawChatMessage} from "./interface/IMessageType";
+import {JsonDB} from 'node-json-db';
+import {Config} from 'node-json-db/dist/lib/JsonDBConfig'
 
-const config: Config = ConfigManager.getServerConfig();
+export const db = new JsonDB(new Config("qq_uuid_map", true, true, '/'));
+const config: ServerConfig = ConfigManager.getServerConfig();
 
 export class OnebotServer implements IOneBotServer {
     private wss?: WebSocketServer;
@@ -37,10 +41,10 @@ export class OnebotServer implements IOneBotServer {
              * 接受客户端消息
              */
             // 接收客户端消息并打印
-            ws.on('message', data => {
+            ws.on('message', async data => {
                 const raw = data.toString();
                 try {
-                    const msg = JSON.parse(raw);
+                    const msg: RawChatMessage = JSON.parse(raw);
                     // 心跳和生命周期消息用于验证连接
                     if (msg.meta_event_type) {
                         if (msg.meta_event_type === 'lifecycle' || msg.meta_event_type === 'heartbeat') {
@@ -82,11 +86,101 @@ export class OnebotServer implements IOneBotServer {
                          * 不予转发来源不是chathub或不是qq_active_group的消息
                          */
                         if (!(msg.group_id === config.qq_active_group || msg.group_id === 'chathub')) return;
+                        Logger.network.receive(msg)
+                        const data: MessageElement[] = msg.message
+                        /**
+                         * 指令模块
+                         */
+                        if (data[0].data.text?.startsWith('!!')) {
+                            Logger.debug(`[Command] 收到指令消息：`, data[0].data?.text);
+                            const command = (data[0].data.text?.split('!!')[1].trim()).split(' ')[0]
+                            Logger.debug("[Command] 解析指令为：", command)
+                            const args = (data[0].data.text?.split('!!')[1].trim()).split(' ').filter((_, index) => index > 0);
+                            Logger.debug("[Command] 解析参数为：", args)
 
-                        const data = msg.message
+                            switch (command) {
+                                case 'ping':
+                                    this.respond([{'type': 'text', data: {'text': 'pong!!'}}], conn)
+                                    break
+                                case 'bind':
+                                    // 绑定客户端 ID 与昵称
+                                    if (args.length !== 1) {
+                                        db.getData(`/qq_to_uuid/${msg.sender.user_id}`).then((data) => {
+                                            this.respond([{
+                                                'type': 'text',
+                                                data: {'text': `当前已绑定${JSON.stringify(data)}\n如需再次绑定，请使用：\n!!bind 玩家昵称`}
+                                            }], conn)
+                                        }).catch(() => {
+                                            this.respond([{
+                                                'type': 'text',
+                                                data: {'text': '绑定失败，使用该指令进行绑定：\n!!bind 玩家昵称'}
+                                            }], conn)
+                                        })
+                                    } else {
+                                        const player_name = args[0]
+                                        Logger.debug("开始绑定...")
+                                        get_uuid_by_player_name(player_name).then(async data => {
+                                            const player_uuid = data
+                                            const player_qq_id = msg.sender.user_id
+                                            const exists = await db.exists(`/qq_to_uuid/${player_qq_id}`);
+                                            if (exists) {
+                                                this.respond([{
+                                                    type: 'text',
+                                                    data: {text: `已将QQ ${player_qq_id} 的MC账户更改为 ${player_name}`}
+                                                }], conn)
+
+                                            } else {
+                                                this.respond([{
+                                                    type: 'text',
+                                                    data: {text: `已绑定QQ ${player_qq_id} 的MC账户为 ${player_name}`}
+                                                }], conn)
+                                            }
+                                            await db.push(`/uuid_to_qq/${player_uuid}`, {player_qq_id})
+                                            await db.push(`/qq_to_uuid/${player_qq_id}`, {player_uuid})
+                                            Logger.debug(player_name, player_uuid, player_qq_id, exists)
+                                            Logger.debug("绑定完成！")
+                                        })
+                                    }
+                                    break
+                                case ('unbind'):
+                                    // 解绑客户端 ID 与昵称
+                                    db.getData(`/qq_to_uuid/${msg.sender.user_id}`).then(async (data) => {
+                                            const player_uuid = data.player_uuid
+                                            const player_qq_id = msg.sender.user_id
+                                            await db.delete(`/qq_to_uuid/${player_qq_id}`)
+                                            await db.delete(`/uuid_to_qq/${player_uuid}`)
+                                            this.respond([{
+                                                type: 'text',
+                                                data: {text: `已解绑QQ ${player_qq_id} 的MC账户`}
+                                            }], conn)
+                                            Logger.debug("解绑完成！")
+                                        }
+                                    ).catch(() => {
+                                        this.respond([{
+                                            'type': 'text',
+                                            data: {'text': '解绑失败，您尚未绑定任何MC账户'}
+                                        }], conn)
+                                    })
+                                    break
+                                default:
+                                    this.respond([{
+                                        'type': 'text',
+                                        data: {'text': `未知指令：${command}`}
+                                    }], conn);
+                            }
+                            return;
+                        }
                         if (msg.sender.nickname === 'null') {
+                            // Chathub服务端的消息，
                             this.broadcast(data, conn);
-                        } else {
+                        } else if (msg.group_id === 'koishi') {
+                            // 来自 Koishi 的消息
+
+                        } else if (msg.group_id === config.qq_active_group) {
+                            // 来自 QQ 群的消息，添加昵称
+                            this.broadcast(data, conn, msg.sender.user_id, config.is_use_group_nickname ? msg.sender.card : msg.sender.nickname);
+                        } else if (msg.group_id === 'chathub') {
+                            // 来自 Chathub 的消息
                             this.broadcast(data, conn, msg.sender.user_id, msg.sender.nickname);
                         }
                     }
@@ -124,7 +218,7 @@ export class OnebotServer implements IOneBotServer {
     public broadcast(messages: any[], conn: IOneBotConnection, sender_id?: string, sender_name?: string): void {
         // 在转发时, 不动消息体, 而是加上客户端标识符
         // Logger.warn('start',messages,'stop')
-        if (sender_name){
+        if (sender_name) {
             messages.unshift({
                 type: 'text',
                 data: {
@@ -141,17 +235,13 @@ export class OnebotServer implements IOneBotServer {
             })
         }
 
-        this.wsClients.forEach(client => {
+        this.wsClients.forEach(async client => {
             if (client !== conn) { // 避免向当前连接发送消息
                 const payload = {
                     "action": "send_group_msg",
-                    "sender": {
-                        user_id: sender_id,
-                        nickname: sender_name
-                    },
                     "params": {
                         "group_id": config.qq_active_group,
-                        "message": MessageFilter.filterMessages(messages, <string>client.client_type),
+                        "message": await MessageFilter.filterMessages(messages, <string>client.client_type),
                     },
                 }
                 try {
@@ -162,5 +252,42 @@ export class OnebotServer implements IOneBotServer {
                 }
             }
         })
+    }
+
+    public respond(message: MessageElement[], conn: IOneBotConnection): void {
+        conn.send({
+            "action": "send_group_msg",
+            "params": {
+                "group_id": config.qq_active_group,
+                "message": message
+            },
+        });
+    }
+}
+
+
+/**
+ * 通过玩家名获取 UUID
+ * @param playerName 玩家名（Minecraft 用户名）
+ * @returns Promise<string | null> 若成功则返回 UUID（去掉中划线），失败返回 null
+ */
+export const get_uuid_by_player_name = async (playerName: string): Promise<string | null> => {
+    try {
+        // Mojang 官方 API
+        const response = await fetch(`https://api.mojang.com/users/profiles/minecraft/${playerName}`);
+
+        if (!response.ok) {
+            // 404 表示玩家不存在
+            if (response.status === 404) return null;
+            Logger.error(`请求失败: ${response.status} ${response.statusText}`)
+        }
+
+        const data = (await response.json()) as { id: string; name: string };
+
+        // 返回去掉中划线的 UUID（Mojang 默认无中划线）
+        return data.id || null;
+    } catch (error) {
+        console.error(`[get_uuid_by_player_name] 查询失败:`, error);
+        return null;
     }
 }

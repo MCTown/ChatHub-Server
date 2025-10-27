@@ -47,7 +47,7 @@ export class Logger {
         send: (...args: any[]) => {
             console.log(
                 Logger.format('SEND', Logger.FG_MAGENTA),
-                ...args
+                JSON.stringify(args)
             );
         },
         receive: (...args: any[]) => {

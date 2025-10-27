@@ -1,8 +1,10 @@
 import {Logger} from "./Logger";
-
+import {JsonDB} from 'node-json-db';
+import {Config} from 'node-json-db/dist/lib/JsonDBConfig'
+import {db, get_uuid_by_player_name} from "../OnebotServer";
 export class MessageFilter {
     // 仅处理Message,不处理sender之类的数据
-    static filterMessages(messages: any[], client_type: string): any[] {
+    static async filterMessages(messages: any[], client_type: string): Promise<any[]> {
         let processedMessages = [];
         for (let message of messages) {
             let msg_type: string = message.type
@@ -11,12 +13,24 @@ export class MessageFilter {
                     processedMessages.push(message);
                     break;
                 case 'image':
+                    Logger.warn("图片消息", message.data);
                     if (message.url) {
                         Logger.warn("图片消息 URL:", message.url);
                         processedMessages.push({
                             type: 'image',
                             data: {
-                                url: message.url
+                                url: message.url,
+                                summary: message.summary
+                            }
+                        });
+                        break
+                    }
+                    if (message.data.url) {
+                        Logger.warn("图片消息 URL:", message.data.url);
+                        processedMessages.push({
+                            type: 'image',
+                            data: {
+                                url: message.data.url
                             }
                         });
                         break
@@ -49,14 +63,33 @@ export class MessageFilter {
                                         qq: "3026194904" // todo
                                     }
                                 });
-                            } else if (at_info.mcuuid) {
+                            } else if (at_info.player_name) {
+                                // chathub传参{'type': 'at', 'data': {'player_name': player_name}}
                                 // MC->QQ 需要查表并转换为 QQ ID
-                                processedMessages.push({
-                                    type: 'at',
-                                    data: {
-                                        qq: "3026194904" // todo
-                                    }
-                                });
+                                await get_uuid_by_player_name(at_info.player_name).then(async r => {
+                                    await db.getData(`/uuid_to_qq/${r}`).then(r => {
+                                        processedMessages.push({
+                                            type: 'at',
+                                            data: {
+                                                qq: r.player_qq_id
+                                            }
+                                        });
+                                        processedMessages.push({
+                                            type: 'text',
+                                            data: {
+                                                'text': ' '
+                                            }
+                                        });
+                                    }).catch(err => {
+                                        processedMessages.push({
+                                            type: 'text',
+                                            data: {
+                                                'text': '@' + at_info.player_name + ' '
+                                            }
+                                        });
+                                        Logger.warn("玩家", at_info.player_name, "未绑定 QQ 账号，无法发送 at 消息", err);
+                                    })
+                                })
                             }
                             break
                         default:

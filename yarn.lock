@@ -284,6 +284,11 @@ mkdirp@^1.0.4:
   resolved "https://registry.npmjs.org/mkdirp/-/mkdirp-1.0.4.tgz"
   integrity sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==
 
+node-json-db@^2.4.0:
+  version "2.4.0"
+  resolved "https://registry.npmjs.org/node-json-db/-/node-json-db-2.4.0.tgz"
+  integrity sha512-jPGviCC23CsBo5MB6Z/N5ezBAABf1BhudAb6iSYzdBc7G+Ogiz3La+cuh0MbFLletTP97H0WCayg+BTAWm3wIQ==
+
 normalize-path@^3.0.0, normalize-path@~3.0.0:
   version "3.0.0"
   resolved "https://registry.npmjs.org/normalize-path/-/normalize-path-3.0.0.tgz"
