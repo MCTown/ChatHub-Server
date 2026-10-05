@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2563eb">
+  <title>登录 · ChatHub</title>
+  <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/chat.css">
+  <script defer src="/assets/chat.js"></script>
+  <script defer src="/assets/app.js"></script>
+</head>
+<body>
+  <section class="login-page" id="login-page" aria-label="登录 ChatHub">
+    <div class="login-story">
+      <a class="brand login-brand" href="/"><img src="/assets/logo.svg" alt="" width="42" height="42"><span>ChatHub<small>MINECRAFT CHAT PLATFORM</small></span></a>
+      <div class="login-story-content">
+        <span class="login-kicker">YOUR WORLDS, CONNECTED</span>
+        <h1>连接每个世界，<br>汇聚每一次对话<span>。</span></h1>
+        <p>从 Minecraft 服务端到 OneBot 应用，<br>在一个工作台里，看见你的整个聊天网络。</p>
+        <div class="login-network" aria-hidden="true">
+          <div class="login-worlds"><span><span data-icon="server"></span>生存世界</span><span><span data-icon="server"></span>创造世界</span></div>
+          <div class="login-network-line"></div>
+          <div class="login-hub"><img src="/assets/logo.svg" width="32" height="32" alt=""><strong>ChatHub</strong><small>统一聊天平台</small></div>
+          <div class="login-network-line"></div>
+          <div class="login-app"><span data-icon="code"></span>OneBot 应用</div>
+        </div>
+        <div class="login-features"><span><span data-icon="globe"></span>跨服连接</span><span><span data-icon="message"></span>统一消息流</span><span><span data-icon="lock"></span>独立管理凭证</span></div>
+      </div>
+      <p class="login-story-footer">Built for connected worlds · ChatHub 2.0</p>
+    </div>
+    <div class="login-form-side">
+      <button id="theme-toggle-login" class="theme-toggle" type="button" aria-label="切换到深色模式" title="切换到深色模式"><span data-icon="moon"></span><span class="theme-toggle-label">深色模式</span></button>
+      <div class="login-card">
+        <div class="login-lock" data-icon="lock"></div>
+        <span class="login-kicker">PLATFORM CONSOLE</span>
+        <h2>欢迎回来</h2>
+        <p class="login-description">登录 ChatHub，进入你的平台工作台。</p>
+        <form id="login-form" aria-busy="false">
+          <label for="token">管理凭证 <span>Dashboard Token</span></label>
+          <input id="token" type="password" placeholder="输入你的管理凭证" autocomplete="off" aria-label="管理凭证 Dashboard Token" aria-describedby="token-hint auth-error" required>
+          <p id="token-hint" class="login-hint">使用服务端配置中的 dashboard_token，与节点及 OneBot 密码独立。</p>
+          <p id="auth-error" class="form-error" role="alert"></p>
+          <button id="login-submit" class="button primary login-submit" type="submit"><span id="login-submit-label">登录工作台</span><span data-icon="arrow"></span></button>
+          <p id="login-status" class="login-status" role="status" aria-live="polite"></p>
+        </form>
+        <div class="login-security"><span data-icon="lock"></span><span>凭证仅保存在当前标签页，退出即清除。</span></div>
+      </div>
+      <footer class="login-footer">ChatHub 控制台 · 安全接入 · 平台观测</footer>
+    </div>
+  </section>
+  <a class="skip-link" id="workspace-skip" href="#main" hidden>跳转到内容</a>
+  <div class="shell" id="workspace" hidden>
+    <aside class="sidebar" id="sidebar" aria-label="主导航">
+      <a class="brand" href="/" data-view="overview"><img src="/assets/logo.svg" alt="" width="38" height="38"><span>ChatHub<small>MINECRAFT CHAT PLATFORM</small></span></a>
+      <div class="nav-label">工作空间</div>
+      <nav>
+        <a class="nav-item active" data-view="overview" href="/"><span data-icon="grid"></span>平台总览</a>
+        <a class="nav-item" data-view="nodes" href="/nodes"><span data-icon="server"></span>客户端与成员<span class="nav-count" id="node-count">—</span></a>
+        <a class="nav-item" data-view="messages" href="/messages"><span data-icon="message"></span>消息流</a>
+        <a class="nav-item" data-view="chat" href="/chat"><span data-icon="message"></span>群聊<span class="nav-count">NEW</span></a>
+        <a class="nav-item" data-view="logs" href="/logs"><span data-icon="activity"></span>日志<span class="nav-count" id="log-count">0</span></a>
+        <a class="nav-item" data-view="plugins" href="/plugins"><span data-icon="puzzle"></span>平台插件</a>
+        <a class="nav-item" data-view="settings" href="/settings"><span data-icon="settings"></span>平台设置</a>
+      </nav>
+      <div class="nav-label second-label">开发与接入</div>
+      <nav><a class="nav-item" data-view="guide" href="/guide"><span data-icon="code"></span>接入指南<span class="external-arrow">↗</span></a></nav>
+      <div class="sidebar-bottom"><div class="avatar">A</div><div><strong>平台管理员</strong><small>平台观测与插件接入</small></div><button id="logout" class="icon-button" title="退出当前会话" aria-label="退出当前会话"><span data-icon="logout"></span></button></div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar">
+        <div class="breadcrumb"><button id="menu-toggle" class="icon-button mobile-menu" aria-label="展开导航" aria-expanded="false"><span data-icon="menu"></span></button><span>工作空间</span><span class="breadcrumb-slash">/</span><strong id="breadcrumb-title">平台总览</strong></div>
+        <div class="topbar-right"><span class="environment"><span class="status-dot"></span><span id="environment-label">本地环境</span></span><span class="top-divider"></span><button id="theme-toggle" class="theme-toggle icon-button" type="button" aria-label="切换到深色模式" title="切换到深色模式"><span data-icon="moon"></span></button><button id="refresh" class="icon-button" title="立即刷新" aria-label="立即刷新"><span data-icon="refresh"></span></button><button id="help" class="icon-button" title="接入指南" aria-label="接入指南"><span data-icon="help"></span></button><span class="top-avatar">A</span></div>
+      </header>
+      <main id="main" tabindex="-1">
+        <section class="page-heading" id="page-heading"><div><div class="eyebrow">YOUR WORLDS, CONNECTED</div><h1 id="page-title">平台总览<span class="heading-dot">.</span></h1><p id="page-description">所有世界的连接与对话，尽在这里。</p></div><div class="heading-actions"><span class="last-update" id="last-update">等待连接</span><button class="button secondary" id="pause"><span data-icon="pause"></span><span>暂停刷新</span></button><button class="button primary" data-view="guide"><span data-icon="plus"></span>接入新节点</button></div></section>
+        <div id="view-content"></div>
+        <footer class="page-footer"><span><span class="footer-symbol">✳</span> ChatHub · Built for connected worlds</span><span id="footer-status">安全连接 · 独立凭证 · 只读管理</span></footer>
+      </main>
+    </div>
+  </div>
+  <dialog id="plugin-settings-dialog" class="plugin-dialog" aria-labelledby="plugin-settings-title">
+    <div id="plugin-dialog-content"></div>
+    <div id="plugin-dialog-toast" class="plugin-dialog-toast" role="status" aria-live="polite" hidden></div>
+  </dialog>
+  <dialog id="message-data-dialog" class="plugin-dialog message-data-dialog" aria-labelledby="message-data-title" aria-describedby="message-data-description">
+    <div id="message-data-content"></div>
+    <div id="message-dialog-toast" class="plugin-dialog-toast" role="status" aria-live="polite" hidden></div>
+  </dialog>
+  <dialog id="onebot-connection-dialog" class="plugin-dialog onebot-connection-dialog" aria-labelledby="onebot-connection-title">
+    <div id="onebot-connection-content"></div>
+    <div id="onebot-connection-toast" class="plugin-dialog-toast" role="status" aria-live="polite" hidden></div>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
