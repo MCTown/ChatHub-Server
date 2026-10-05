@@ -1,0 +1,35 @@
+# Change both passwords before deployment, or override using the environment.
+host: "0.0.0.0" # 监听所有网卡；控制台因此可从局域网访问
+port: 6700
+node_password: "change-node-password"
+onebot_token: "change-onebot-token"
+# Displayed even when the dashboard is accessed from the LAN; override via CHATHUB_ONEBOT_PUBLIC_URL.
+onebot_public_url: "wss://chathubdev.server.apricityx.top:55555/onebot/v11"
+dashboard_token: "change-dashboard-token" # dashboard read + OneBot client management
+# Explicit public origins for management writes behind a Host-rewriting proxy.
+# Local direct HTTP access remains supported; this does not enable CORS.
+dashboard_origins:
+  - "https://chathubdev.server.apricityx.top:55555"
+identity_file: "data/identities.json"
+# Initial public HTTP(S) origin for the platform; edit in Dashboard → 平台设置 (auto-saved).
+# Saved data/settings.json takes precedence over this initial value / CHATHUB_PUBLIC_URL.
+public_url: ""
+settings_file: "data/settings.json"
+image_directory: "data/images"
+plugin_state_file: "data/plugins.json" # dashboard plugin enable/disable overrides
+delivery_timeout_ms: 5000
+
+# Optional: ChatHub connects as the OneBot implementation to an application's
+# reverse WS endpoint. API/Event split: add ?role=API or ?role=Event.
+onebot_reverse_urls: []
+
+# Explicit trusted plugins. IDs match registry, management API and saved switch state.
+plugins:
+  onebot:
+    enabled: true
+    clients_file: "data/onebot-clients.json" # bot tokens stored here; never commit
+  relay:
+    enabled: false
+    nodes: [] # empty = all online Minecraft / OneBot clients; otherwise a subset of node IDs
+    blacklist: [] # excluded from both sending and receiving relays; overrides nodes
+    include_system: true # also relay messages from the virtual Minecraft Server account
