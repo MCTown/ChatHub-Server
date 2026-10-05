@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../ChatHub/PlayerIdentity.cs" Link="PlayerIdentity.cs" />
+    <Compile Include="../ChatHub/NodeSettings.cs" Link="NodeSettings.cs" />
+    <Compile Include="../ChatHub/NodeClient.cs" Link="NodeClient.cs" />
+    <Compile Include="../ChatHub/BossTracker.cs" Link="BossTracker.cs" />
+    <Compile Include="../ChatHub/DeliveryRenderer.cs" Link="DeliveryRenderer.cs" />
+  </ItemGroup>
+</Project>

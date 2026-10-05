@@ -1,0 +1,1 @@
+ChatHub v2 server-side bridge: player chat, joins, leaves, deaths and boss damage reports. Configure ModConfigs/ChatHub.json on the server. No client installation or credentials required.

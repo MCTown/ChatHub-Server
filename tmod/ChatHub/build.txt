@@ -1,0 +1,5 @@
+displayName = ChatHub Terraria Node
+author = Apricityx_
+version = 0.1.0
+side = Server
+buildIgnore = *.csproj, bin/*, obj/*, README.md

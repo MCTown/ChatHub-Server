@@ -18,7 +18,8 @@ WebSocket：`/chathub/v2/connect`。UTF-8 JSON 文本帧。鉴权在 HTTP Upgrad
 
 `node_id` 为 1–64 位字母、数字、下划线、点、短横线；稳定且每个节点唯一。
 重复的在线节点 ID 被拒绝。UUID 为带/不带短横线的 32 位十六进制值。
-hello.name 是节点显示名；后续 player.name 为 Java 玩家名，identity_scope 表示 UUID 的认证来源。
+hello.name 是节点显示名；后续 player.name 为玩家显示名（1–80 字符，允许 Unicode / 空格，不允许控制字符或全空白），identity_scope 表示 UUID 的认证来源。
+Minecraft 节点仍上报 Java 玩家名；Terraria 节点使用角色名，并在独立的 `terraria:characters:<realm>` 作用域内使用稳定角色标识，不将其当作 Steam 或 Minecraft 账户 UUID。
 hello 不携带 players；在线名单必须由服务端调用客户端 API 获取。
 
 响应：
@@ -90,7 +91,8 @@ MC 已停止时返回空名单；自定义 / 本地化输出需适配，否则�
 ```
 
 system kind 是节点提供的分类（1–64 位小写字母/数字/下划线/短横线，字母开头），常见值为
-startup/shutdown/join/leave/death/advancement。服务端不解析其业务含义；文本由 MCDR 完成后上报。
+startup/shutdown/join/leave/death/advancement，以及 Terraria 的 boss_start/boss_progress/boss_defeat/boss_escape。
+服务端不解析其业务含义；文本由各游戏节点完成后上报。
 它生成 origin=system 的群消息，由虚拟账号 2（Minecraft Server）发送，通过标准 OneBot 事件流输出。
 系统消息与玩家聊天一样具有 event_id 去重和 accepted 响应；系统 accepted 不含 uuid。
 进出服系统消息仅用于聊天通知，不作为在线成员状态来源。

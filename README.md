@@ -1,6 +1,6 @@
 # ChatHub 2
 
-**Minecraft 聊天平台的 OneBot 实现端。** ChatHub 服务端与 MCDReforged 节点共同组成平台，
+**游戏聊天平台的 OneBot 实现端。** ChatHub 服务端与 MCDReforged / tModLoader 节点共同组成平台，
 每个 MC 服务端是一个群，玩家 UUID 是内部身份，玩家名是昵称。对外提供 OneBot V11 数值虚拟身份。
 
 ```text
@@ -57,9 +57,14 @@ Web 控制台使用独立 `dashboard_token` / `CHATHUB_DASHBOARD_TOKEN`，不共
 - Web 控制台：`http://host:6700/`，支持明暗切换；登录后查看客户端、成员、消息及发送失败日志，并在平台插件页添加 / 移除 OneBot 群客户端。
   各页面使用独立路由（如 `/plugins`、`/messages`），支持深链接、刷新及前进 / 后退；页面与设置窗口提供轻量动效。
 
-Minecraft 节点凭密码自报身份，服务端不维护节点白名单。身份映射保存到
+原生游戏节点凭密码自报身份，服务端不维护节点白名单。身份映射保存到
 `server/data/identities.json`，不要删除；同一文件只供一个 ChatHub 进程使用。
 网页管理的 OneBot 群客户端单独保存到 `server/data/onebot-clients.json`（含机器人 Token，勿提交）。
+
+## Terraria / tModLoader 节点
+
+新增服务器侧 mod：[`tmod/ChatHub/`](tmod/ChatHub/)。转发玩家聊天、进退服、死亡，以及 Boss 开战 / 结算 / 每人伤害占比；支持接收 ChatHub 消息、在线名单查询和自动重连，玩家无需安装。
+安装、构建、凭证配置与统计口径见 [tModLoader 节点说明](tmod/README.md)。
 
 ## MCDR 节点
 

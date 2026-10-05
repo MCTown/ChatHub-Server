@@ -7,6 +7,9 @@ dist
 __pycache__
 *.pyc
 *.mcdr
+*.tmod
+tmod/**/bin/
+tmod/**/obj/
 qq_uuid_map.json
 server/data/
 .venv/

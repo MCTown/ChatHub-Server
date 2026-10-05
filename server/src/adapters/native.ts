@@ -6,7 +6,8 @@ import {Delivery, DeliveryObservation, NodeTransport} from "../domain/model";
 
 const player = z.object({
     uuid: z.string().regex(/^(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/),
-    name: z.string().regex(/^[A-Za-z0-9_]{1,16}$/),
+    // Native nodes also include Terraria characters (Unicode and spaces).
+    name: z.string().min(1).max(80).refine(name => name.trim().length > 0 && !/[\u0000-\u001f\u007f]/.test(name)),
 });
 const segments = z.array(z.discriminatedUnion("type", [
     z.object({type: z.literal("text"), text: z.string().max(16000)}),

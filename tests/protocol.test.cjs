@@ -69,6 +69,34 @@ async function node(url, nodeId = 'survival', players = [player]) {
     return inbox;
 }
 
+test('Terraria Unicode character names, system reports and deliveries use native v2', async t => {
+    const {url, platform} = await fixture(t);
+    const character = {uuid: '9d155751642748ce92fa10444c93032b', name: '小明 One'};
+    const tr = await connect(url + '/chathub/v2/connect', 'nodes');
+    tr.send({type: 'hello', version: 2, node_id: 'terraria', name: '泰拉瑞亚', identity_scope: 'terraria:characters:test'});
+    const registered = await tr.next(frame => frame.type === 'registered');
+    const query = await tr.next(frame => frame.type === 'api_call');
+    tr.send({type: 'api_result', request_id: query.request_id, ok: true, players: [character]});
+    const users = await tr.next(frame => frame.type === 'users');
+    assert.equal(users.users[0].name, character.name);
+    tr.send({type: 'chat', event_id: 'tr-chat', player: character, segments: [{type: 'text', text: '你好'}]});
+    const chat = await tr.next(frame => frame.type === 'accepted');
+    assert.equal(platform.message(chat.message_id).authorName, character.name);
+    for (const kind of ['join', 'leave', 'death', 'boss_start', 'boss_progress', 'boss_defeat', 'boss_escape']) {
+        tr.send({type: 'system', event_id: `tr-${kind}`, kind, text: `${kind}: 小明 One 100（100.00%）`});
+        const accepted = await tr.next(frame => frame.type === 'accepted');
+        assert.equal(platform.message(accepted.message_id).systemKind, kind);
+    }
+    for (const name of [' ', 'bad\nname', 'bad\0name', 'x'.repeat(81)]) {
+        tr.send({type: 'chat', event_id: 'invalid-name', player: {...character, name}, segments: [{type: 'text', text: 'invalid'}]});
+        assert.equal((await tr.next(frame => frame.type === 'error')).code, 'invalid_request');
+    }
+    const send = platform.send(registered.group_id, [{type: 'text', text: '跨服回复'}]);
+    const delivery = await tr.next(frame => frame.type === 'deliver');
+    tr.send({type: 'delivery_result', request_id: delivery.request_id, ok: true});
+    assert.equal((await send).id, delivery.messageId);
+});
+
 test('authentication rejects upgrade, native registration is separate from OneBot', async t => {
     const {url} = await fixture(t);
     const socket = new WebSocket(url + '/chathub/v2/connect', {headers: {Authorization: 'Bearer wrong'}});
