@@ -1,28 +1,35 @@
 {
   "name": "chathub",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Minecraft chat platform with native MCDR nodes and a OneBot V11 implementation gateway",
   "scripts": {
-    "dev": "ts-node-dev src/index.ts"
+    "dev": "cd server && ts-node-dev --respawn src/main.ts",
+    "check": "tsc --project server/tsconfig.json --noEmit",
+    "build": "node scripts/build-server.mjs",
+    "start": "cd server && node dist/main.js",
+    "build:plugin": "node scripts/pack-plugin.mjs",
+    "build:all": "npm run build && npm run build:plugin",
+    "test": "npm run build && node --test tests/*.test.cjs",
+    "test:plugin": "python3 -m unittest discover -s plugin/tests -v",
+    "test:integration": "npm run build && node --test tests/integration/*.test.cjs"
   },
   "keywords": [],
-  "author": "",
+  "author": "Apricityx_",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@types/node": "^24.0.8",
-    "@types/ws": "^8.18.1",
-    "@types/yaml": "^1.9.7",
-    "node-json-db": "^2.4.0",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.8.3",
+    "sharp": "^0.34.5",
     "ws": "^8.18.3",
     "yaml": "^2.8.0",
-    "yarn": "^1.22.22",
     "zod": "^3.25.71"
   },
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9"
-  }
+    "@types/node": "^24.0.8",
+    "@types/ws": "^8.18.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3",
+    "archiver": "^7.0.1"
+  },
+  "engines": {"node": ">=22"}
 }

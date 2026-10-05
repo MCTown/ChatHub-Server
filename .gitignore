@@ -1,5 +1,23 @@
-1.21.5 server
-1.21.5 server clone
+ 1.21.5 server
+ 1.21.5 server clone
 node_modules
 .idea
 test.txt
+dist
+__pycache__
+*.pyc
+*.mcdr
+qq_uuid_map.json
+server/data/
+.venv/
+.openchamber/screenshots/
+deploy/cache/
+deploy/.secrets
+deploy/logs/
+deploy/survival/
+deploy/creative/
+deploy/backups/
+
+# 本机部署 / 升级手册与脚本（含服务器凭证，勿提交）
+/deploy.md
+/upgrade-remote.sh
