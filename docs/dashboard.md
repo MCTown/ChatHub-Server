@@ -40,7 +40,7 @@ localStorage 或 Cookie。退出清除凭证及当前数据。不同用途的凭
 - **日志**：最近 200 次发送失败，显示时间、目标客户端、投递 / 来源消息 ID 和失败原因；支持按来源、目标客户端与关键词筛选，总览也展示最近失败。
 - **平台插件**：统一列表展示名称、模块名、说明、类型与状态；每个插件提供“开启 / 关闭”及“设置”按钮。设置弹窗中也提供开关；OneBot 可填写表单并添加 / 移除群客户端，跨服转发策略仍只读，不支持任意插件热加载。
 - **平台设置**：管理通用的平台公网地址，编辑后自动保存；仅显示输入框与保存状态。
-- **接入指南**：MCDR / OneBot 配置示例，可复制并替换占位密码。
+- **接入指南**：接入 ChatHub 客户端与 OneBot 应用的配置示例；节点密码由服务端配置填充，可复制使用。
 
 默认每 5 秒刷新，可暂停或手动刷新；后台标签页暂停自动请求。
 失败时保留上一次数据并明确标记过期；认证失败时清空数据并要求重新登录。
@@ -194,15 +194,16 @@ revision 不匹配返回 409，防止覆盖其他管理员的修改；页面保�
 从内网访问控制台时也会显示该公网地址。地址统一去重；Web 地址与内网或公网地址相同时只显示一项。
 部署更新后须重启 ChatHub 服务端，避免新静态页面调用旧进程而返回 404；不必重启 Minecraft。
 Token 默认遮蔽，点击显示后可手动复制；关闭、切换页面或退出会清除弹窗数据，不写入浏览器存储。
-仅打开弹窗时调用 `GET /api/onebot/connection`，使用独立 Dashboard Bearer 鉴权及 Origin 检查、
-不缓存、不开放 CORS。这是唯一主动返回网关 `onebot_token` 的管理入口；不返回节点密码、
-控制台 Token 或真实 QQ 机器人凭证，总览快照与静态资源仍不包含凭证。
+仅打开弹窗时调用 `GET /api/onebot/connection`，使用独立 Dashboard Bearer 鉴权、不缓存、不开放 CORS。
+这是主动返回网关 `onebot_token` 的管理入口；接入指南打开时调用 `GET /api/native/connection`
+返回节点 `node_password` 与内网直连地址，同样要求 Dashboard Bearer。两者都不返回控制台 Token
+或真实 QQ 机器人凭证，总览快照与静态资源仍不包含凭证。
 该凭证可以读取玩家 UUID、QQ 成员账号和聊天内容，
 应视为敏感凭证。API 无跨域授权、响应不缓存。
 
 观测 API 仍只读。新增的 `POST /api/plugins/onebot/clients`、`DELETE /api/plugins/onebot/clients/<id>`
 仅管理 OneBot 群客户端；`PUT /api/plugins/onebot/state`、`PUT /api/plugins/relay/state` 接受严格的
-`{"enabled": true}` / `{"enabled": false}`，只控制两个内置插件的开关，并执行相同的认证及 Origin 检查。
+`{"enabled": true}` / `{"enabled": false}`，只控制两个内置插件的开关，并执行相同的 Dashboard Bearer 认证。
 `GET /api/plugins` 返回注册插件的公开元信息及配置投影；Dashboard 快照包含同一 `plugins` 列表，以及
 `pluginStates` 和当前有效的 relay.enabled 等兼容字段，不回显配置文件路径或私有凭证。
 不提供控制 Minecraft 节点、安装任意插件或任意配置写入的接口；群消息仅通过上述受限接口发送。注册与配置规则见 [插件规范](plugins.md)。

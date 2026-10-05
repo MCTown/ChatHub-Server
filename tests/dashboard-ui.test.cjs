@@ -250,6 +250,19 @@ const chatSnapshot = () => ({...snapshot(),groups:[
 const sentChat = (id=2,groupId=100) => ({id,groupId,authorId:1,authorName:'ChatHub',origin:'application',time:1700000010,
     segments:[{type:'text',text:'已确认的消息'}]});
 
+test('chat uses three panels without a duplicate navigation rail or nested dashboard main',async()=>{
+    const ui=app('dashboard',{initialPath:'/chat'});await ui.respond(0,200,chatSnapshot());
+    const shell=ui.get('view-content').innerHTML;
+    assert.match(shell,/<aside class="qq-conversations"/);
+    assert.match(shell,/<section class="qq-chat-main"/);
+    assert.match(shell,/<aside class="qq-members"/);
+    assert.doesNotMatch(shell,/qq-rail|qq-user-avatar|data-qq-theme|data-qq-logout|联系人|收藏|<main\b/);
+    assert.match(shell,/data-qq-clear[^>]*aria-label="清空输入"/);
+    assert.match(ui.get('[data-qq-header]').innerHTML,/data-qq-mobile-list/);
+    assert.match(ui.get('[data-qq-members]').innerHTML,/class="qq-member-copy"/);
+    ui.clickTheme('theme-toggle');assert.equal(ui.get('html').dataset.theme,'dark');
+});
+
 test('chat deep link authenticates with Dashboard only, escapes messages and renders only same-origin media',async()=>{
     const ui=app('dashboard',{initialPath:'/chat'});
     assert.equal(ui.get('workspace').hidden,true);
@@ -288,7 +301,7 @@ test('chat polling preserves input, focus and scroll; switching groups restores 
     ui.chatClick('[data-qq-group]',{qqGroup:'101'});
     assert.equal(field.value,'第二群草稿');assert.equal(ui.get('.qq-shell').classList.contains('qq-mobile-list'),false);
     ui.chatInput('机器人','[data-qq-filter]');assert.doesNotMatch(ui.get('[data-qq-groups]').innerHTML,/生存世界/);
-    ui.chatClick('[data-qq-placeholder]',{qqPlaceholder:'联系人'});assert.match(ui.get('toast').textContent,/暂未开放/);
+    ui.chatClick('[data-qq-placeholder]',{qqPlaceholder:'搜索消息'});assert.match(ui.get('toast').textContent,/暂未开放/);
     ui.chatClick('[data-qq-new]');assert.match(ui.get('toast').textContent,/暂不支持/);
     ui.chatClick('[data-qq-clear]');assert.equal(field.value,'');
 });
@@ -352,7 +365,7 @@ test('leaving chat or logging out aborts pending sends, ignores late responses a
     await ui.respond(1,201,{message:sentChat()});assert.doesNotMatch(ui.get('view-content').innerHTML,/已确认的消息/);
     ui.navigate('chat');await ui.respond(2,200,chatSnapshot());
     assert.equal(ui.get('[data-qq-text]').value,'');
-    const reader=ui.chatImage();ui.chatClick('[data-qq-logout]');ui.readImage(reader);
+    const reader=ui.chatImage();ui.get('logout').listeners.click();ui.readImage(reader);
     assert.equal(ui.get('workspace').hidden,true);assert.equal(ui.get('view-content').innerHTML,'');
     assert.deepEqual(Object.keys(ui.get('view-content').listeners),[]);
 });
@@ -551,6 +564,8 @@ test('logged-out UI only shows login, no workspace contents or automatic API pol
 
 const connectionDetails = () => ({self_id:1,system_user_id:2,access_token:'<secret>&"token',path:'/onebot/v11',
     direct_urls:[{name:'ens18',url:'ws://192.168.31.99:6700/onebot/v11'}]});
+const nativeDetails = () => ({access_token:'nodes-secret',path:'/chathub/v2/connect',
+    direct_urls:[{name:'ens18',url:'ws://192.168.31.99:6700/chathub/v2/connect'}]});
 
 function traceSnapshot() {
     const id='00000000-0000-4000-8000-000000000001', timestampMs=1700000000000;
@@ -763,9 +778,27 @@ test('OneBot dialog supports keyboard opening, retry, close-during-load and reje
     assert.equal(ui.onebotAction('[data-onebot-connection]',{key:' ',id:'onebot-topology-open'}),true);
     await ui.respond(3,200,connectionDetails());
     ui.navigate('guide');await ui.finishClose();assert.equal(ui.get('onebot-connection-content').innerHTML,'');
-    await ui.onebotAction();await ui.respond(4,200,connectionDetails());
+    await ui.respond(4,200,nativeDetails());
+    await ui.onebotAction();await ui.respond(5,200,connectionDetails());
     ui.get('logout').listeners.click();assert.equal(ui.get('onebot-connection-content').innerHTML,'');
-    await ui.onebotAction();assert.equal(ui.requests.length,5);
+    await ui.onebotAction();assert.equal(ui.requests.length,6);
+});
+
+test('the access guide requests the node password and shows it as the ChatHub client credential',async()=>{
+    const ui=app('dashboard');await ui.respond(0);
+    ui.navigate('guide');
+    const request=ui.requests.at(-1);
+    assert.equal(request.url,'/api/native/connection');
+    assert.equal(request.options.headers.Authorization,'Bearer dashboard');
+    assert.match(ui.get('view-content').innerHTML,/&lt;node_password&gt;/);
+    await ui.respond(ui.requests.length-1,200,nativeDetails());
+    const html=ui.get('view-content').innerHTML;
+    assert.match(html,/接入 ChatHub 客户端/);
+    assert.doesNotMatch(html,/接入 Minecraft 节点/);
+    assert.match(html,/nodes-secret/);
+    assert.doesNotMatch(html,/&lt;node_password&gt;/);
+    assert.equal(ui.requests.filter(entry=>entry.url==='/api/native/connection').length,1);
+    ui.get('logout').listeners.click();
 });
 
 test('OneBot addresses show public access from the LAN and deduplicate current/internal entries',async()=>{

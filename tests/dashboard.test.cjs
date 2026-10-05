@@ -169,6 +169,26 @@ test('OneBot connection details require management credentials and ignore reques
     })).status,200);
 });
 
+test('node connection details reveal the MCDR node password only to authenticated management requests', async t => {
+    const {read,url} = await fixture(t);
+    const endpoint='/api/native/connection';
+    for (const token of ['', 'wrong', 'nodes-secret', 'apps-secret']) {
+        assert.equal((await read(endpoint,token)).status,401, token || 'missing');
+    }
+    assert.equal((await read(endpoint,'dashboard-secret',{method:'POST'})).status,405);
+    const response=await read(endpoint,'dashboard-secret');
+    assert.equal(response.status,200);
+    assert.equal(response.headers.get('cache-control'),'no-store');
+    assert.equal(response.headers.get('access-control-allow-origin'),null);
+    const details=await response.json();
+    assert.deepEqual(details,{access_token:'nodes-secret',path:'/chathub/v2/connect',
+        direct_urls:[{name:'监听地址',url:url.replace('http:','ws:')+'/chathub/v2/connect'}]});
+    for (const secret of ['apps-secret','dashboard-secret']) assert.equal(JSON.stringify(details).includes(secret),false);
+    for (const route of ['/api/dashboard','/','/assets/app.js']) assert.equal((await (await read(route)).text()).includes('nodes-secret'),false);
+    const disabled=await fixture(t,{dashboard_token:undefined});
+    assert.equal((await disabled.read(endpoint)).status,503);
+});
+
 test('OneBot connection details include an explicitly configured public WS address for LAN callers',async t=>{
     const public_url='wss://console.example:55555/onebot/v11';
     const {read}=await fixture(t,{onebot_public_url:public_url});

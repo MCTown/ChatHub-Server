@@ -204,6 +204,8 @@
   let onebotDialogOpen = false;
   let onebotReturnFocus = '';
   let onebotError = '';
+  let nativeConnection = null;
+  let nativeRequested = false;
   let generation = 0;
   let toastTimer;
   let chatWorkspace = null;
@@ -553,6 +555,19 @@
     renderOnebotDialog(()=>{
       if (restoreFocus && state.data && !onebotDialogOpen) ($(`#${CSS.escape(returnFocus)}`) || $('#main')).focus({preventScroll:true});
     });
+  }
+  async function ensureNativeConnection() {
+    if (nativeConnection || nativeRequested || !state.data) return;
+    nativeRequested = true;
+    try {
+      const response = await fetch('/api/native/connection',{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+      if (response.status===401) { disconnect(); $('#auth-error').textContent='管理凭证失效，请重新登录。'; return; }
+      const result = await response.json();
+      if (response.ok && result && typeof result.access_token==='string') {
+        nativeConnection = result;
+        if (state.data && state.view==='guide') render();
+      }
+    } catch { /* keep the placeholder; the guide stays usable without the credential */ }
   }
   // All plugins share metadata, list rendering and the same settings dialog.
   // Only their settings body is plugin-specific.
@@ -1198,8 +1213,9 @@
     const scheme = location.protocol==='https:'?'wss:':'ws:';
     const nativeUrl = `${scheme}//${location.host}/chathub/v2/connect`;
     const onebotUrl = `${scheme}//${location.host}/onebot/v11`;
+    const nodePassword = nativeConnection?.access_token || '<node_password>';
     const code = text => `<div class="code-box"><pre>${escape(text)}</pre><button class="copy-button" data-copy="${escape(text)}" aria-label="复制配置">${icon('copy')}</button></div>`;
-    return `<div class="guide-grid"><section class="panel guide-card"><h2>${icon('server')}接入 Minecraft 节点</h2><p>将构建好的 chathub-2.0.0.mcdr 放入 MCDR 插件目录。节点自带配置，无需在 ChatHub 维护注册名单。</p><div class="guide-step"><span>1</span>运行 npm run build:plugin，安装 dist/ 中的插件。</div><div class="guide-step"><span>2</span>在 MCDR chathub.json 中填写地址与独立节点密码。</div><div class="guide-step"><span>3</span>为节点设置唯一 node_id，重载插件后自动接入。</div>${code(JSON.stringify({server_url:nativeUrl,password:'<node_password>',node_id:'survival',name:'生存世界',identity_mode:'cache',identity_scope:'minecraft:online'},null,2))}<p>离线模式请使用 identity_mode=offline 并设置独立的身份范围。缓存模式从登录日志 / usercache 读取权威 UUID。</p></section><section class="panel guide-card"><h2>${icon('code')}连接 OneBot 应用</h2><p>ChatHub 是 OneBot V11 实现端。Koishi / NoneBot 等应用连接网关，接收事件、调用群聊 API。</p><div class="guide-step"><span>1</span>在应用中配置 OneBot V11 正向 WebSocket。</div><div class="guide-step"><span>2</span>使用 onebot_token；不要使用节点或管理密码。</div><div class="guide-step"><span>3</span>按需使用 Universal 或独立 API / Event 通道。</div>${code(`${onebotUrl}\nAuthorization: Bearer <onebot_token>\n\n${onebotUrl}/api\n${onebotUrl}/event`)}<p>平台群 ID / 用户 ID 为虚拟身份，并非 QQ 账号。机器人 self_id=1，系统消息发送者 user_id=2。</p></section></div>
+    return `<div class="guide-grid"><section class="panel guide-card"><h2>${icon('server')}接入 ChatHub 客户端</h2><p>将构建好的 chathub-2.0.0.mcdr 放入 MCDR 插件目录。节点自带配置，无需在 ChatHub 维护注册名单。</p><div class="guide-step"><span>1</span>运行 npm run build:plugin，安装 dist/ 中的插件。</div><div class="guide-step"><span>2</span>在 MCDR chathub.json 中填写地址与独立节点密码。</div><div class="guide-step"><span>3</span>为节点设置唯一 node_id，重载插件后自动接入。</div>${code(JSON.stringify({server_url:nativeUrl,password:nodePassword,node_id:'survival',name:'生存世界',identity_mode:'cache',identity_scope:'minecraft:online'},null,2))}<p>离线模式请使用 identity_mode=offline 并设置独立的身份范围。缓存模式从登录日志 / usercache 读取权威 UUID。</p></section><section class="panel guide-card"><h2>${icon('code')}连接 OneBot 应用</h2><p>ChatHub 是 OneBot V11 实现端。Koishi / NoneBot 等应用连接网关，接收事件、调用群聊 API。</p><div class="guide-step"><span>1</span>在应用中配置 OneBot V11 正向 WebSocket。</div><div class="guide-step"><span>2</span>使用 onebot_token；不要使用节点或管理密码。</div><div class="guide-step"><span>3</span>按需使用 Universal 或独立 API / Event 通道。</div>${code(`${onebotUrl}\nAuthorization: Bearer <onebot_token>\n\n${onebotUrl}/api\n${onebotUrl}/event`)}<p>平台群 ID / 用户 ID 为虚拟身份，并非 QQ 账号。机器人 self_id=1，系统消息发送者 user_id=2。</p></section></div>
       <div class="guide-callout">${icon('message')}<div><strong>接入真实机器人与 QQ 群？</strong><br>到“平台插件”填写真实机器人的 V11 Universal 正向 WS 地址、群号和可选 Access Token。该群成为平台客户端；不要把 ChatHub 自己的网关地址填入此适配器。跨群转发需要启用 CrossServerRelay。</div></div>
       <div class="guide-callout">${icon('lock')}<div><strong>分离凭证，保持边界。</strong><br>dashboard_token 用于观测及 OneBot 客户端管理，只应交给受信任管理员；node_password 用于 MCDR；onebot_token 用于应用网关。真实机器人使用它自己的 Access Token。公开部署请使用 HTTPS / WSS 并修改所有示例密码。没有重启、踢出或任意配置写入操作。</div></div>`;
   }
@@ -1250,7 +1266,7 @@
     else if (state.view==='logs') content += logPanel(true);
     else if (state.view==='plugins') content += pluginsPage();
     else if (state.view==='settings') content += settingsPage();
-    else content += guide();
+    else { content += guide(); ensureNativeConnection(); }
     $('#view-content').innerHTML = content;
     container.dataset.settingsForm=String(state.view==='settings' && !!data().settings);
     if (state.view==='settings') syncSettingsPage();
@@ -1364,6 +1380,7 @@
     state.messageFilter='all';state.messageSearch='';state.groupFilter='all';state.nodeSearch='';
     state.selectedMessage=null;state.messageReturnFocus='';
     traceController?.abort();traceController=null;state.selectedTrace=null;
+    nativeConnection=null;nativeRequested=false;
     state.logSearch='';state.logOrigin='all';state.logGroupFilter='all';
     state.selectedPlugin='onebot';
     state.pluginDialogOpen=false;state.pluginReturnFocus='';

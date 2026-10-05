@@ -18,7 +18,8 @@ import {OneBotApi} from "./onebot/Api";
 export interface ConnectionStats { forward: number; reverse: number; applications?: ApplicationConnection[]; }
 
 /** Dashboard and narrowly scoped OneBot adapter management. Snapshots never return credentials;
- * the explicit connection-details endpoint reveals only the gateway token to authenticated admins.
+ * the explicit connection-details endpoints reveal only the gateway token and the MCDR node
+ * password to authenticated admins.
  * Never returns configuration files or shares authentication with native nodes / OneBot apps.
  */
 export class Dashboard {
@@ -90,19 +91,20 @@ export class Dashboard {
             const publicOrigin = this.settings.snapshot().public_url;
             const publicGateway = this.config.onebot_public_url ??
                 (publicOrigin ? publicOrigin.replace(/^http/, "ws") + "/onebot/v11" : undefined);
-            const wildcard = ["0.0.0.0", "::"].includes(this.config.host);
-            const addresses = wildcard ? Object.entries(networkInterfaces()).flatMap(([name, entries]) =>
-                /^(docker|br-|veth)/.test(name) ? [] : (entries ?? [])
-                    .filter(entry => entry.family === "IPv4" && !entry.internal &&
-                        /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(entry.address))
-                    .map(entry => ({name, address: entry.address})))
-                : [{name: "监听地址", address: this.config.host}];
             this.json(response, 200, {
                 self_id: this.platform.botId, system_user_id: this.platform.systemId,
                 access_token: this.config.onebot_token, path: "/onebot/v11",
                 ...(publicGateway ? {public_url: publicGateway} : {}),
-                direct_urls: addresses.map(({name, address}) => ({name,
-                    url: `ws://${address.includes(":") ? `[${address}]` : address}:${port}/onebot/v11`})),
+                direct_urls: this.connectionUrls("/onebot/v11", port),
+            });
+            return;
+        }
+        if (url.pathname === "/api/native/connection") {
+            if (!this.authorize(request, response)) return;
+            const port = request.socket.localPort ?? this.config.port;
+            this.json(response, 200, {
+                access_token: this.config.node_password, path: "/chathub/v2/connect",
+                direct_urls: this.connectionUrls("/chathub/v2/connect", port),
             });
             return;
         }
@@ -213,6 +215,18 @@ export class Dashboard {
             this.json(response, 401, {error: "Invalid dashboard token"}); return false;
         }
         return true;
+    }
+
+    private connectionUrls(pathname: string, port: number): Array<{name: string; url: string}> {
+        const wildcard = ["0.0.0.0", "::"].includes(this.config.host);
+        const addresses = wildcard ? Object.entries(networkInterfaces()).flatMap(([name, entries]) =>
+            /^(docker|br-|veth)/.test(name) ? [] : (entries ?? [])
+                .filter(entry => entry.family === "IPv4" && !entry.internal &&
+                    /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(entry.address))
+                .map(entry => ({name, address: entry.address})))
+            : [{name: "监听地址", address: this.config.host}];
+        return addresses.map(({name, address}) => ({name,
+            url: `ws://${address.includes(":") ? `[${address}]` : address}:${port}${pathname}`}));
     }
 
     private async managePluginState(request: http.IncomingMessage, response: http.ServerResponse, id: string): Promise<void> {
