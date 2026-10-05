@@ -23,6 +23,7 @@
 
     const state = {data: null, stale: false, error: '', paused: false};
     const safe = value => options.escape(value);
+    const icon = name => options.icon(name);
     const text = message => (message?.segments || []).map(segment => {
       if (segment.type === 'text') return String(segment.text || '');
       if (segment.type === 'image') return '[图片]';
@@ -62,31 +63,22 @@
 
     function shell() {
       container.innerHTML = `<div class="qq-shell">
-        <aside class="qq-rail" aria-label="群聊导航">
-          <div class="qq-user-avatar">A<span></span></div>
-          <button class="qq-rail-button active" type="button" aria-label="群聊">●</button>
-          <button class="qq-rail-button" type="button" data-qq-placeholder="联系人" aria-label="联系人">♙</button>
-          <button class="qq-rail-button" type="button" data-qq-placeholder="收藏" aria-label="收藏">☆</button>
-          <div class="qq-rail-spacer"></div>
-          <button class="qq-rail-button" type="button" data-qq-theme aria-label="切换主题">☼</button>
-          <button class="qq-rail-button" type="button" data-qq-logout aria-label="退出">↪</button>
-        </aside>
         <aside class="qq-conversations" aria-label="群聊列表">
-          <div class="qq-conversation-top"><strong>群聊</strong><button type="button" data-qq-new aria-label="新建群聊" title="虚拟群由已接入客户端提供">＋</button></div>
-          <label class="qq-search"><span aria-hidden="true">⌕</span><input data-qq-filter value="" placeholder="搜索群聊" aria-label="搜索群聊"></label>
+          <div class="qq-conversation-top"><strong>群聊</strong><button type="button" data-qq-new aria-label="新建群聊" title="虚拟群由已接入客户端提供">${icon('plus')}</button></div>
+          <label class="qq-search">${icon('search')}<input data-qq-filter value="" placeholder="搜索群聊" aria-label="搜索群聊"></label>
           <div class="qq-group-list" data-qq-groups></div>
         </aside>
-        <main class="qq-chat-main" aria-label="群聊窗口">
+        <section class="qq-chat-main" aria-label="群聊窗口">
           <header class="qq-chat-header" data-qq-header></header>
           <div class="qq-stale" data-qq-stale hidden></div>
           <section class="qq-message-list" data-qq-messages aria-live="polite"></section>
           <form class="qq-composer" data-qq-form>
-            <div class="qq-composer-tools"><label class="qq-tool" title="发送图片"><input type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-qq-image hidden>▧</label><button class="qq-tool" type="button" data-qq-clear title="清空输入">⌫</button><span class="qq-image-name" data-qq-image-name></span></div>
+            <div class="qq-composer-tools"><label class="qq-tool" title="发送图片"><input class="sr-only" type="file" accept="image/png,image/jpeg,image/gif,image/webp" data-qq-image aria-label="发送图片"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></label><button class="qq-tool" type="button" data-qq-clear title="清空输入" aria-label="清空输入">${icon('close')}</button><span class="qq-image-name" data-qq-image-name></span></div>
             <div class="qq-image-preview" data-qq-preview hidden></div>
             <textarea data-qq-text placeholder="输入消息，Enter 发送 · Shift+Enter 换行" aria-label="消息内容"></textarea>
-            <div class="qq-composer-bottom"><span data-qq-status>消息会以 ChatHub 虚拟账号发送</span><button class="qq-send" type="submit">发送 <span>⌄</span></button></div>
+            <div class="qq-composer-bottom"><span data-qq-status role="status">消息会以 ChatHub 虚拟账号发送</span><button class="qq-send" type="submit">发送 ${icon('arrow')}</button></div>
           </form>
-        </main>
+        </section>
         <aside class="qq-members" data-qq-members aria-label="群成员"></aside>
       </div>`;
     }
@@ -121,7 +113,7 @@
     function renderHeader(group) {
       const header = container.querySelector('[data-qq-header]');
       if (!header) return;
-      header.innerHTML = group ? `<button class="qq-mobile-back" type="button" data-qq-mobile-list aria-label="返回群聊列表">‹ <span>群聊</span></button><div class="qq-chat-title"><h1>${safe(group.name)}</h1><span>${group.members.length} 位成员 · ${group.kind === 'onebot' ? 'OneBot 群' : 'Minecraft 世界'}</span></div><div class="qq-header-actions"><button type="button" data-qq-placeholder="搜索消息" aria-label="搜索消息">⌕</button><button type="button" data-qq-placeholder="群设置" aria-label="群设置">⋯</button></div>` : '<div class="qq-no-group-title">选择一个群聊开始对话</div>';
+      header.innerHTML = group ? `<button class="qq-mobile-back" type="button" data-qq-mobile-list aria-label="返回群聊列表">${icon('arrow')}</button><div class="qq-chat-title"><h1>${safe(group.name)}</h1><span>${group.members.length} 位成员 · ${group.kind === 'onebot' ? 'OneBot 群' : 'Minecraft 世界'}</span></div><div class="qq-header-actions"><button type="button" data-qq-placeholder="搜索消息" aria-label="搜索消息" title="搜索消息">${icon('search')}</button><button type="button" data-qq-placeholder="群设置" aria-label="群设置" title="群设置">${icon('settings')}</button></div>` : '<div class="qq-no-group-title">选择一个群聊开始对话</div>';
     }
 
     function renderMessages(group, force = false) {
@@ -144,7 +136,7 @@
       const signature = group ? `${group.id}:${group.members.map(member => `${member.userId}:${member.online}`).join(',')}` : '';
       if (signature === groupSignature) return;
       groupSignature = signature;
-      members.innerHTML = group ? `<div class="qq-members-title"><strong>群成员</strong><span>${group.members.length}</span></div><div class="qq-member-list">${group.members.map(member => `<div class="qq-member">${avatar(member.name)}<span><strong>${safe(member.name)}</strong><small>${member.online ? '在线' : '离线'}</small></span></div>`).join('')}</div>` : '';
+      members.innerHTML = group ? `<div class="qq-members-title"><strong>群成员</strong><span>${group.members.length}</span></div><div class="qq-member-list">${group.members.map(member => `<div class="qq-member">${avatar(member.name)}<span class="qq-member-copy"><strong>${safe(member.name)}</strong><small class="${member.online ? 'qq-member-online' : ''}">${member.online ? '在线' : '离线'}</small></span></div>`).join('')}</div>` : '';
     }
 
     function renderComposer(group) {
@@ -274,8 +266,6 @@
       if (target?.closest('[data-qq-new]')) { options.notice('群聊由已接入的 Minecraft 或 OneBot 客户端提供，暂不支持在控制台新建。'); return; }
       const placeholder = target?.closest('[data-qq-placeholder]');
       if (placeholder) { options.notice(`${placeholder.dataset.qqPlaceholder}暂未开放。`); return; }
-      if (target?.closest('[data-qq-theme]')) { options.theme(event); return; }
-      if (target?.closest('[data-qq-logout]')) { options.logout(); }
     }
     function input(event) {
       if (event.target.matches('[data-qq-filter]')) { filter = event.target.value; renderGroups(); }

@@ -1232,7 +1232,7 @@
       if (!chatWorkspace) {
         container.replaceChildren();container.dataset.view='chat';
         chatWorkspace=window.ChatHubChat.mount(container,{icon,escape,token:()=>token,
-          unauthorized:disconnect,notice:toast,navigate:setView,theme:toggleTheme,logout:disconnect,
+          unauthorized:disconnect,notice:toast,navigate:setView,
           refresh,accepted:message=>{if(state.data){state.data.messages=[message,...state.data.messages.filter(item=>item.id!==message.id)];}}});
       }
       chatWorkspace.sync(data(),{stale:state.stale,error:state.error,paused:state.paused});
