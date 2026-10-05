@@ -6,10 +6,6 @@ onebot_token: "change-onebot-token"
 # Displayed even when the dashboard is accessed from the LAN; override via CHATHUB_ONEBOT_PUBLIC_URL.
 onebot_public_url: "wss://chathubdev.server.apricityx.top:55555/onebot/v11"
 dashboard_token: "change-dashboard-token" # dashboard read + OneBot client management
-# Explicit public origins for management writes behind a Host-rewriting proxy.
-# Local direct HTTP access remains supported; this does not enable CORS.
-dashboard_origins:
-  - "https://chathubdev.server.apricityx.top:55555"
 identity_file: "data/identities.json"
 # Initial public HTTP(S) origin for the platform; edit in Dashboard → 平台设置 (auto-saved).
 # Saved data/settings.json takes precedence over this initial value / CHATHUB_PUBLIC_URL.

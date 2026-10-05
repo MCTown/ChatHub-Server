@@ -143,7 +143,6 @@ test('OneBot connection details reveal only the gateway credential on an explici
     }
     assert.equal((await read(endpoint+'?access_token=dashboard-secret','')).status,401);
     assert.equal((await read(endpoint,'dashboard-secret',{method:'POST'})).status,405);
-    assert.equal((await read(endpoint,'dashboard-secret',{headers:{Authorization:'Bearer dashboard-secret',Origin:'https://evil.example'}})).status,403);
     const response=await read(endpoint,'dashboard-secret',{headers:{Authorization:'Bearer dashboard-secret',Origin:url}});
     assert.equal(response.status,200);
     assert.equal(response.headers.get('cache-control'),'no-store');
@@ -161,12 +160,12 @@ test('OneBot connection details reveal only the gateway credential on an explici
     app.close();await once(app,'close');
 });
 
-test('OneBot connection details respect missing management credentials and configured public origins', async t => {
+test('OneBot connection details require management credentials and ignore request origin', async t => {
     const disabled=await fixture(t,{dashboard_token:undefined});
     assert.equal((await disabled.read('/api/onebot/connection')).status,503);
-    const configured=await fixture(t,{dashboard_origins:['https://console.example:55555']});
-    assert.equal((await configured.read('/api/onebot/connection','dashboard-secret',{
-        headers:{Authorization:'Bearer dashboard-secret',Origin:'https://console.example:55555'},
+    const enabled=await fixture(t);
+    assert.equal((await enabled.read('/api/onebot/connection','dashboard-secret',{
+        headers:{Authorization:'Bearer dashboard-secret',Origin:'https://any.example'},
     })).status,200);
 });
 
@@ -354,31 +353,6 @@ test('dashboard credential loads from config or environment and rejects newlines
     assert.throws(()=>loadConfig(dir),/Invalid dashboard token/);
 });
 
-test('dashboard public origins are validated, normalized and support an explicit environment override', t => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(),'chathub-origins-'));
-    t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
-    const old = process.env.CHATHUB_DASHBOARD_ORIGINS;
-    t.after(()=>{if(old===undefined)delete process.env.CHATHUB_DASHBOARD_ORIGINS;else process.env.CHATHUB_DASHBOARD_ORIGINS=old;});
-    delete process.env.CHATHUB_DASHBOARD_ORIGINS;
-    const file = path.join(dir,'config.yaml');
-    const base = 'node_password: nodes\nonebot_token: apps\n';
-    fs.writeFileSync(file,base);
-    assert.deepEqual(loadConfig(dir).dashboard_origins,[]);
-    fs.writeFileSync(file,base+'dashboard_origins: ["https://Console.example:443/", "http://localhost:6700"]\n');
-    assert.deepEqual(loadConfig(dir).dashboard_origins,['https://console.example','http://localhost:6700']);
-    for(const origin of ['*','null','ws://console.example','https://user:pass@console.example','https://console.example/path',
-        'https://console.example?token=x','https://console.example#fragment']) {
-        fs.writeFileSync(file,base+'dashboard_origins: '+JSON.stringify([origin])+'\n');
-        assert.throws(()=>loadConfig(dir));
-    }
-    process.env.CHATHUB_DASHBOARD_ORIGINS='https://public.example:55555, https://second.example/';
-    assert.deepEqual(loadConfig(dir).dashboard_origins,['https://public.example:55555','https://second.example']);
-    process.env.CHATHUB_DASHBOARD_ORIGINS='';
-    assert.deepEqual(loadConfig(dir).dashboard_origins,[]);
-    process.env.CHATHUB_DASHBOARD_ORIGINS='https://public.example/path';
-    assert.throws(()=>loadConfig(dir));
-});
-
 const PNG_1X1 = 'base64://iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
 test('群聊发送只接受独立 Dashboard Token，严格校验请求并返回已投递消息', async t => {
@@ -397,8 +371,6 @@ test('群聊发送只接受独立 Dashboard Token，严格校验请求并返回�
     assert.equal((await post({group_id:group.id,text:'hello',image:'https://evil.example/photo.png'})).status,400);
     assert.equal((await post({group_id:String(group.id),text:'hello'})).status,400);
     assert.equal((await post({group_id:group.id,text:'x'.repeat(8001)})).status,400);
-    assert.equal((await post({group_id:group.id,text:'hello'},'dashboard-secret',{
-        Origin:'https://evil.example'})).status,403);
 
     const response = await post({group_id:group.id,text:'hello'});
     assert.equal(response.status,201);

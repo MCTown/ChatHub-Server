@@ -281,7 +281,6 @@ test('authenticated dashboard can only add/remove adapter clients; secrets are n
         headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...extra},body:JSON.stringify(input)});
     const input={address:remote.url,group_id:555,access_token:'bot-private'};
     for(const token of ['','nodes','apps','wrong'])assert.equal((await post(input,token)).status,401);
-    assert.equal((await post(input,'dashboard',{Origin:'https://evil.example'})).status,403);
     assert.equal((await post({...input,group_id:'bad'})).status,400);
     assert.equal((await post({...input,access_token:'x'.repeat(9000)})).status,413);
     assert.equal((await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer dashboard','Content-Type':'application/json'},body:'invalid'})).status,400);
@@ -341,40 +340,4 @@ test('OneBot stream observes only ChatHub public interface with abstract IDs, ne
     socket.close();await once(socket,'close');
 });
 
-test('explicit public origins work behind a Host-rewriting proxy without trusting forwarded headers or allowing CORS', async t=>{
-    const remote=await bot(t), platform=new Platform(new IdentityStore());
-    const publicOrigin='https://console.example:55555';
-    const server=new ChatHubServer({host:'127.0.0.1',port:0,node_password:'nodes',onebot_token:'apps',dashboard_token:'dashboard',
-        dashboard_origins:[publicOrigin],identity_file:'',delivery_timeout_ms:200,onebot_reverse_urls:[],relay:{enabled:false,nodes:[]}},platform);
-    const port=await server.start();t.after(()=>server.stop());
-    const base=`http://127.0.0.1:${port}`;
-    const endpoint=base+'/api/plugins/onebot/clients';
-    const post=(origin,extra={},token='dashboard')=>fetch(endpoint,{method:'POST',headers:{
-        Authorization:`Bearer ${token}`,'Content-Type':'application/json',Origin:origin,...extra},body:'{}'});
-    // Validation errors mean origin checks passed, with no settings changed.
-    assert.equal((await post(base)).status,400);
-    assert.equal((await post(publicOrigin)).status,400);
-    for(const origin of ['https://evil.example','http://console.example:55555','https://console.example:55556',
-        'https://console.example:55555.evil.example','null',publicOrigin+'/path',publicOrigin+'/',
-        'https://user:pass@console.example:55555',`https://127.0.0.1:${port}`]) {
-        assert.equal((await post(origin)).status,403,origin);
-    }
-    assert.equal((await post('https://evil.example',{'X-Forwarded-Host':'evil.example','X-Forwarded-Proto':'https',
-        Forwarded:'host=evil.example;proto=https'})).status,403);
-    assert.equal((await post(publicOrigin,{},'wrong')).status,401);
-    const created=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer dashboard','Content-Type':'application/json',
-        Origin:publicOrigin},body:JSON.stringify({address:remote.url,group_id:555})});
-    assert.equal(created.status,201);
-    assert.equal(created.headers.has('access-control-allow-origin'),false);
-    const {client}=await created.json();
-    await until(()=>platform.groups().length===1);
-    const remove=origin=>fetch(endpoint+'/'+client.id,{method:'DELETE',headers:{Authorization:'Bearer dashboard',Origin:origin}});
-    assert.equal((await remove('https://evil.example')).status,403);
-    assert.equal(platform.groups().length,1);
-    assert.equal((await remove(publicOrigin)).status,200);
-    assert.equal(platform.groups().length,0);
-    const preflight=await fetch(endpoint,{method:'OPTIONS',headers:{Origin:'https://evil.example',
-        'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'authorization,content-type'}});
-    assert.equal(preflight.status,401);
-    assert.equal(preflight.headers.has('access-control-allow-origin'),false);
-});
+

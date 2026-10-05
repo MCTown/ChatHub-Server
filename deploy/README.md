@@ -45,8 +45,7 @@ setup.sh 会生成 v2 地址，但也会覆盖演示节点配置，不适合直�
 - 控制台展示客户端、成员、消息与转发配置，并可在“平台插件”添加 / 移除 OneBot 群客户端。
   控制台 token 因此属于受信任管理员权限，不再是纯只读凭证；机器人 Token 单独保存到
   `server/data/onebot-clients.json`，勿提交或暴露。
-- 公网反向代理若改写 Host，需将浏览器访问的完整来源加入 `dashboard_origins`（或使用
-  `CHATHUB_DASHBOARD_ORIGINS`），否则添加 / 移除客户端会被来源校验拦截。该配置不开放 CORS。
+- 管理接口只校验 `dashboard_token`，不校验请求来源，反向代理改写 Host 不影响添加 / 移除客户端；服务端不返回 CORS 响应头。
 
 ## 从本地访问
 

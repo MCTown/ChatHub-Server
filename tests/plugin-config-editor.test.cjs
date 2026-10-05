@@ -43,7 +43,7 @@ test('editor metadata derives types, default values and constraints from Zod; un
     assert.throws(()=>buildConfigEditor(z.object({nested:z.object({value:z.string()})}),[{key:'nested',label:'Nested'}],[]));
 });
 
-test('configuration endpoint exposes public editor metadata and strictly validates authentication, origins and field types',async t=>{
+test('configuration endpoint exposes public editor metadata and strictly validates authentication and field types',async t=>{
     const {base,headers,get,put}=await fixture(t);
     const plugin=await get();
     assert.equal(plugin.configuration.editable,true);assert.equal(plugin.configuration.applyMode,'live');
@@ -53,8 +53,6 @@ test('configuration endpoint exposes public editor metadata and strictly validat
     const onebot=await get('onebot');assert.equal(onebot.configuration.editable,false);
     assert.equal(JSON.stringify(onebot).includes('clients_file'),false);
     for(const token of ['','nodes','apps','wrong']) assert.equal((await fetch(base+'/api/plugins/relay/config',{headers:{Authorization:`Bearer ${token}`}})).status,401);
-    assert.equal((await put(plugin,{}, {Origin:'https://evil.example'})).status,403);
-    assert.equal((await put(plugin,{}, {Origin:'https://evil.example','X-Forwarded-Host':'evil.example'})).status,403);
     for(const values of [{nodes:[1]}, {blacklist:['']}, {include_system:'true'}, {enabled:false}, {clients_file:'/etc/passwd'}, {unknown:1},null,[]]) {
         const response=await put(plugin,values);assert.equal(response.status,400,JSON.stringify(values));
     }

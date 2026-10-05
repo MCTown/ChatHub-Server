@@ -71,7 +71,7 @@ test('missing public origin fails base64 sends in the API and logs page data, wi
     assert.equal((await f.call('can_send_image')).data.yes,true);
 });
 
-test('settings are authenticated, strict, origin-checked, revision-checked and persisted without exposing private paths',async t=>{
+test('settings are authenticated, strict, revision-checked and persisted without exposing private paths',async t=>{
     const f=await fixture(t);
     for(const token of ['', 'apps', 'nodes']) {
         assert.equal((await f.api('/api/settings',{headers:{Authorization:'Bearer '+token}})).status,401);
@@ -80,8 +80,6 @@ test('settings are authenticated, strict, origin-checked, revision-checked and p
     assert.equal(initial.settings.public_url,'');
     assert.equal((await f.api('/api/settings',{method:'POST'})).status,405);
     assert.equal((await f.api('/api/settings',{method:'PUT',headers:{'Content-Type':'text/plain'}})).status,415);
-    assert.equal((await f.api('/api/settings',{method:'PUT',headers:{Origin:'https://evil.example'},
-        body:JSON.stringify({...initial.settings,public_url:f.url})})).status,403);
     for(const public_url of ['wss://example.org','https://example.org/path','https://user:pass@example.org',
         'https://example.org?token=secret','https://example.org#fragment','not a URL']) {
         assert.equal((await f.setOrigin(public_url)).status,400,public_url);

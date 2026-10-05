@@ -5,15 +5,6 @@ import {z} from "zod";
 import {normalizePluginConfigurations, pluginInputSchema, PluginConfigurations} from "./plugins/builtins";
 import {publicUrlSchema} from "./storage/PlatformSettings";
 
-const dashboardOrigin = z.string().trim().url().refine(value => {
-    try {
-        const url = new URL(value);
-        return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password &&
-            url.pathname === "/" && !url.search && !url.hash;
-    } catch { return false; }
-}, "Use an http/https origin without credentials, path, query or fragment")
-    .transform(value => new URL(value).origin);
-
 const schema = z.object({
     host: z.string().default("127.0.0.1"),
     port: z.number().int().min(0).max(65535).default(6700),
@@ -27,7 +18,6 @@ const schema = z.object({
         } catch { return false; }
     }, "Use a ws/wss Universal gateway URL without credentials, query or fragment").optional(),
     dashboard_token: z.string().min(1).refine(value => !/[\r\n]/.test(value), "Invalid dashboard token").optional(),
-    dashboard_origins: z.array(dashboardOrigin).max(50).default([]),
     identity_file: z.string().default("data/identities.json"),
     public_url: publicUrlSchema.default(""),
     settings_file: z.string().min(1).default("data/settings.json"),
@@ -60,8 +50,6 @@ export function loadConfig(directory: string): Config {
         onebot_public_url: process.env.CHATHUB_ONEBOT_PUBLIC_URL ?? input.onebot_public_url,
         public_url: process.env.CHATHUB_PUBLIC_URL ?? input.public_url,
         dashboard_token: process.env.CHATHUB_DASHBOARD_TOKEN ?? input.dashboard_token,
-        dashboard_origins: process.env.CHATHUB_DASHBOARD_ORIGINS === undefined ? input.dashboard_origins
-            : process.env.CHATHUB_DASHBOARD_ORIGINS.split(",").map(value => value.trim()).filter(Boolean),
     });
     const plugins = normalizePluginConfigurations(parsed.plugins, {relay: parsed.relay,
         onebotClientsFile: parsed.onebot_adapter_file}, directory);

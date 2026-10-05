@@ -18,18 +18,8 @@ dashboard_token: "替换为独立的高强度随机密码"
 
 ### 反向代理下的管理操作
 
-若代理改写了后端 `Host`，需显式配置浏览器访问的完整来源（协议、域名及非默认端口）：
-
-```yaml
-dashboard_origins:
-  - "https://console.example.com:55555"
-```
-
-也可用 `CHATHUB_DASHBOARD_ORIGINS` 设置逗号分隔的来源列表；空字符串覆盖为空列表。
-不填写路径、查询参数、凭证或通配符。修改后重启 ChatHub。
-直接 HTTP 访问仍校验请求 Host；代理来源以此列表为准，不信任 `X-Forwarded-Host` 等客户端可伪造的头。
-这不是 CORS 开关，仍要求独立 Bearer Token，不允许其他网站跨域调用管理接口。
-若点击保存出现 `Cross-origin management is not allowed`，检查此列表是否包含当前网址的来源。
+管理接口只校验独立 Bearer Token，不校验请求来源，因此可经反向代理访问，无需按代理域名维护来源白名单。
+服务端不返回 CORS 响应头，其他网站无法读取管理接口响应；仍必须使用独立 `dashboard_token`。
 
 页面将凭证保存在当前标签页的 sessionStorage（不可用时仅保存在内存），不写入 URL、
 localStorage 或 Cookie。退出清除凭证及当前数据。不同用途的凭证应设置不同值。
@@ -177,7 +167,7 @@ revision 不匹配返回 409，防止覆盖其他管理员的修改；页面保�
 `server/config.yaml` 的 `public_url` / 环境变量 `CHATHUB_PUBLIC_URL` 初始值。
 `settings_file`、`image_directory` 可在 YAML 修改私有存储位置；修改路径需要重启。
 公网地址只允许 HTTP(S) 来源（可含端口），不由请求 Host / 转发头自动推断。
-它不替代 `dashboard_origins` 安全白名单，不改变监听端口、鉴权或代理配置。
+它不改变监听端口、鉴权或代理配置。
 没有单独配置 `onebot_public_url` 时，OneBot 连接详情显示由平台公网地址派生的 WS / WSS 网关地址；显式 `onebot_public_url` 始终优先，避免图片下载地址覆盖独立的网关部署地址。
 
 ### 公开图片

@@ -76,8 +76,7 @@ Token 仅以 `Authorization: Bearer ...` 发给机器人，不放在地址中，
 ## 管理 API
 
 使用独立 `Authorization: Bearer <dashboard_token>`，不接受 query token、节点密码或 onebot_token。
-无 CORS，只接受直接访问的同源或 `dashboard_origins` 显式配置的公网来源；不从转发头推断可信来源。
-代理改写 Host 时需配置完整的公网协议、域名及端口，详见 [控制台文档](dashboard.md#反向代理下的管理操作)。
+不校验请求来源，可经反向代理访问；不返回 CORS 响应头，其他网站无法读取管理接口响应。
 POST 使用 `application/json`，请求体上限 8 KiB。
 
 ```text

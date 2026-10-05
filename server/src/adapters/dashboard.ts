@@ -51,31 +51,28 @@ export class Dashboard {
         }
         if (url.pathname === "/api/settings") {
             if (!this.authorize(request, response)) return;
-            if (request.method !== "GET" && !this.authorizeOrigin(request, response)) return;
             await this.manageSettings(request, response);
             return;
         }
         if (url.pathname === "/api/chat/messages") {
-            if (!this.authorize(request, response) || !this.authorizeOrigin(request, response)) return;
+            if (!this.authorize(request, response)) return;
             await this.sendChatMessage(request, response);
             return;
         }
         if (url.pathname === "/api/plugins/onebot/clients" || url.pathname.startsWith("/api/plugins/onebot/clients/")) {
             if (!this.authorize(request, response)) return;
-            if (!this.authorizeOrigin(request, response)) return;
             await this.manageAdapters(request, response, url.pathname);
             return;
         }
         const pluginState = /^\/api\/plugins\/([^/]+)\/state$/.exec(url.pathname);
         if (pluginState) {
-            if (!this.authorize(request, response) || !this.authorizeOrigin(request, response)) return;
+            if (!this.authorize(request, response)) return;
             await this.managePluginState(request, response, pluginState[1]);
             return;
         }
         const pluginConfig = /^\/api\/plugins\/([^/]+)\/config$/.exec(url.pathname);
         if (pluginConfig) {
             if (!this.authorize(request, response)) return;
-            if (request.method !== "GET" && !this.authorizeOrigin(request, response)) return;
             await this.managePluginConfiguration(request, response, pluginConfig[1]);
             return;
         }
@@ -88,7 +85,7 @@ export class Dashboard {
             return;
         }
         if (url.pathname === "/api/onebot/connection") {
-            if (!this.authorize(request, response) || !this.authorizeOrigin(request, response)) return;
+            if (!this.authorize(request, response)) return;
             const port = request.socket.localPort ?? this.config.port;
             const publicOrigin = this.settings.snapshot().public_url;
             const publicGateway = this.config.onebot_public_url ??
@@ -214,22 +211,6 @@ export class Dashboard {
         if (!request.headers.authorization?.startsWith("Bearer ") || supplied.length !== expected.length ||
             !timingSafeEqual(supplied, expected)) {
             this.json(response, 401, {error: "Invalid dashboard token"}); return false;
-        }
-        return true;
-    }
-
-    private authorizeOrigin(request: http.IncomingMessage, response: http.ServerResponse): boolean {
-        // Bearer-only + no CORS. Reverse proxies may rewrite Host; their public
-        // origins must be explicitly configured, never inferred from forwarded headers.
-        if (request.headers.origin) {
-            try {
-                const supplied = request.headers.origin;
-                const origin = new URL(supplied);
-                if (!["http:", "https:"].includes(origin.protocol) || supplied !== origin.origin) throw new Error();
-                const allowed = (this.config.dashboard_origins ?? []).includes(origin.origin);
-                const direct = request.headers.host && origin.origin === new URL(`http://${request.headers.host}`).origin;
-                if (!allowed && !direct) throw new Error();
-            } catch { this.json(response, 403, {error: "Cross-origin management is not allowed"}); return false; }
         }
         return true;
     }

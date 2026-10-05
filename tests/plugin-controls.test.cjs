@@ -42,11 +42,9 @@ test('relay switch applies immediately, keeps blacklist policies and does not mu
     chat();await flush();assert.equal(received.length,2);
 });
 
-test('plugin switch API requires management credentials and same/explicit origin; only booleans and built-ins are accepted',async t=>{
-    const {base,set,snapshot}=await fixture(t,{dashboard_origins:['https://console.example']});
+test('plugin switch API requires management credentials and accepts only booleans and built-ins',async t=>{
+    const {base,set,snapshot}=await fixture(t);
     for(const credential of ['','nodes','apps','wrong']) assert.equal((await set('relay',true,{Authorization:`Bearer ${credential}`})).status,401);
-    assert.equal((await set('relay',true,{Origin:'https://evil.example'})).status,403);
-    assert.equal((await set('relay',true,{Origin:'https://evil.example','X-Forwarded-Host':'evil.example','X-Forwarded-Proto':'https'})).status,403);
     for(const value of ['true',1,null,{},[]]) assert.equal((await set('relay',value)).status,400);
     const raw=(body,headers={})=>fetch(base+'/api/plugins/relay/state',{method:'PUT',headers:{Authorization:'Bearer dashboard','Content-Type':'application/json',...headers},body});
     assert.equal((await raw('invalid')).status,400);
