@@ -1,0 +1,8 @@
+{
+  "id": "chathub",
+  "version": "2.0.0",
+  "name": "ChatHub Node",
+  "description": "Native Minecraft node for the ChatHub OneBot platform",
+  "author": "Apricityx_",
+  "dependencies": {"mcdreforged": ">=2.13.0"}
+}
