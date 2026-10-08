@@ -137,6 +137,13 @@ test('OneBot displays source client and sender in Minecraft-style prefixes for p
         {type:'text',data:{text:'[生存服] <Minecraft Server> '}},
         {type:'text',data:{text:'Steve fell from a high place'}},
     ]);
+    await platform.send(qq.id,system.segments,system,{authorName:'服务器通知'});
+    assert.equal(remote.requests.at(-1).params.message[0].data.text,'[生存服] <服务器通知> ');
+    await platform.send(qq.id,system.segments,system,{authorName:''});
+    assert.deepEqual(remote.requests.at(-1).params.message,[
+        {type:'text',data:{text:'[生存服] '}},
+        {type:'text',data:{text:'Steve fell from a high place'}},
+    ]);
     await platform.send(qq.id,[{type:'text',text:'应用直接投递'}]);
     assert.deepEqual(remote.requests.at(-1).params.message,[{type:'text',data:{text:'应用直接投递'}}]);
 });
@@ -339,5 +346,4 @@ test('OneBot stream observes only ChatHub public interface with abstract IDs, ne
     assert.equal(traffic.some(entry=>entry.action==='get_group_info'||entry.action==='get_group_member_info'),false);
     socket.close();await once(socket,'close');
 });
-
 

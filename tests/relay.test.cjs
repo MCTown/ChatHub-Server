@@ -150,9 +150,32 @@ test('relay config defaults and validates blacklist without breaking existing co
         fs.writeFileSync(file,base+(relay === undefined ? '' : 'relay: '+JSON.stringify(relay)+'\n'));
         return loadConfig(directory).relay;
     };
-    assert.deepEqual(load(),{enabled:false,nodes:[],blacklist:[],include_system:true});
-    assert.deepEqual(load({enabled:true}),{enabled:true,nodes:[],blacklist:[],include_system:true});
+    assert.deepEqual(load(),{enabled:false,nodes:[],blacklist:[],include_system:true,system_name:'server',hide_system_name:true});
+    assert.deepEqual(load({enabled:true}),{enabled:true,nodes:[],blacklist:[],include_system:true,system_name:'server',hide_system_name:true});
     assert.deepEqual(load({enabled:true,nodes:['a','b']}).blacklist,[]);
     assert.deepEqual(load({blacklist:[' private ','onebot:123:555']}).blacklist,['private','onebot:123:555']);
     for (const blacklist of ['private',[123],[''],['   '],null]) assert.throws(() => load({blacklist}));
+    assert.equal(load({system_name:' 通知 '}).system_name,'通知');
+    for (const system_name of ['', '   ', 123, 'x'.repeat(81)]) assert.throws(() => load({system_name}));
+    assert.throws(() => load({hide_system_name:'true'}));
+});
+
+test('system display overrides preserve identities, source labels and player names', async t => {
+    for (const hide_system_name of [false,true]) {
+        const platform = new Platform(new IdentityStore());
+        const a = client(platform,'a'), b = client(platform,'b');
+        t.after(installCrossServerRelay(platform,{enabled:true,system_name:'服务器通知',hide_system_name}));
+        const original = platform.system(a.group.id,'death','Steve died');
+        platform.ingest(a.group.id,player,segments);
+        await flush();
+        assert.equal(b.received[0].authorName,hide_system_name ? '' : '服务器通知');
+        assert.equal(b.received[0].sourceGroupName,a.group.name);
+        assert.equal(b.received[1].authorName,player.name);
+        assert.equal(original.authorName,'Minecraft Server');
+        assert.equal(original.authorId,2);
+        const forwarded = platform.message(b.received[0].messageId);
+        assert.equal(forwarded.authorName,'ChatHub');
+        assert.equal(forwarded.authorId,1);
+        assert.equal(forwarded.sourceMessageId,original.id);
+    }
 });

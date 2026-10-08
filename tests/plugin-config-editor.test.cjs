@@ -48,12 +48,12 @@ test('configuration endpoint exposes public editor metadata and strictly validat
     const plugin=await get();
     assert.equal(plugin.configuration.editable,true);assert.equal(plugin.configuration.applyMode,'live');
     assert.equal(plugin.configuration.section,'plugins.relay');assert.match(plugin.configuration.revision,/^[a-f0-9]{64}$/);
-    assert.deepEqual(plugin.configuration.fields.map(field=>field.key),['nodes','blacklist','include_system']);
+    assert.deepEqual(plugin.configuration.fields.map(field=>field.key),['nodes','blacklist','include_system','system_name','hide_system_name']);
     assert.equal(plugin.configuration.fields[0].type,'string-array');assert.equal(plugin.configuration.fields[2].default,true);
     const onebot=await get('onebot');assert.equal(onebot.configuration.editable,false);
     assert.equal(JSON.stringify(onebot).includes('clients_file'),false);
     for(const token of ['','nodes','apps','wrong']) assert.equal((await fetch(base+'/api/plugins/relay/config',{headers:{Authorization:`Bearer ${token}`}})).status,401);
-    for(const values of [{nodes:[1]}, {blacklist:['']}, {include_system:'true'}, {enabled:false}, {clients_file:'/etc/passwd'}, {unknown:1},null,[]]) {
+    for(const values of [{nodes:[1]}, {blacklist:['']}, {include_system:'true'}, {system_name:''}, {system_name:'x'.repeat(81)}, {hide_system_name:'true'}, {enabled:false}, {clients_file:'/etc/passwd'}, {unknown:1},null,[]]) {
         const response=await put(plugin,values);assert.equal(response.status,400,JSON.stringify(values));
     }
     const invalid=await put(plugin,{include_system:'true'});assert.ok((await invalid.json()).fieldErrors.include_system);
@@ -90,16 +90,32 @@ test('editable overrides survive restart alongside switches, maintain 0600 atomi
     const dir=temporary(t),file=path.join(dir,'plugins.json'),yaml=path.join(dir,'config.yaml');
     fs.writeFileSync(yaml,'plugins: {relay: {enabled: true}}\n');const before=fs.readFileSync(yaml,'utf8');
     const first=await fixture(t,{plugin_state_file:file});
-    assert.equal((await first.put(await first.get(),{nodes:['a','b'],blacklist:['private'],include_system:false})).status,200);
+    assert.equal((await first.put(await first.get(),{nodes:['a','b'],blacklist:['private'],include_system:false,system_name:'通知',hide_system_name:true})).status,200);
     await fetch(first.base+'/api/plugins/onebot/state',{method:'PUT',headers:first.headers,body:'{"enabled":false}'});
     const persisted=JSON.parse(fs.readFileSync(file));
-    assert.deepEqual(persisted.config.relay,{schemaVersion:1,values:{nodes:['a','b'],blacklist:['private'],include_system:false}});
+    assert.deepEqual(persisted.config.relay,{schemaVersion:1,values:{nodes:['a','b'],blacklist:['private'],include_system:false,system_name:'通知',hide_system_name:true}});
     assert.equal(persisted.enabled.onebot,false);assert.equal(fs.statSync(file).mode&0o777,0o600);
     assert.equal(fs.readFileSync(yaml,'utf8'),before);assert.deepEqual(fs.readdirSync(dir).sort(),['config.yaml','plugins.json']);
     await first.server.stop();
     const restored=await fixture(t,{plugin_state_file:file,relay:{enabled:false,nodes:['startup'],blacklist:[],include_system:true}});
     const plugin=await restored.get();assert.deepEqual(plugin.configuration.values,persisted.config.relay.values);
     assert.equal(plugin.enabled,false);assert.equal((await restored.get('onebot')).enabled,false);
+});
+
+test('system display settings apply live without changing player names or system identity',async t=>{
+    const {platform,get,put}=await fixture(t),received=[];
+    const a=platform.attach('a','A','online',[],{deliver:async()=>{}});
+    platform.attach('b','B','online',[],{deliver:async value=>received.push(value)});
+    let response=await put(await get(),{system_name:' 服务器通知 ',hide_system_name:false});
+    assert.equal(response.status,200);
+    assert.equal((await response.json()).plugin.configuration.values.system_name,'服务器通知');
+    platform.system(a.id,'startup','started');await flush();
+    assert.equal(received[0].authorName,'服务器通知');
+    response=await put(await get(),{hide_system_name:true});assert.equal(response.status,200);
+    const original=platform.system(a.id,'death','died');
+    platform.ingest(a.id,player,[{type:'text',text:'chat'}]);await flush();
+    assert.equal(received[1].authorName,'');assert.equal(received[1].sourceGroupName,'A');
+    assert.equal(received[2].authorName,player.name);assert.equal(original.authorId,2);
 });
 
 test('failed persistence cannot change effective configuration, and corrupt/unregistered saved config fails closed',async t=>{

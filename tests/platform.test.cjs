@@ -191,7 +191,7 @@ test('relay handles system messages only when selected and never re-emits delive
     const message = platform.system(a.id, 'death', 'Steve was slain by Zombie');
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(deliveries.length, 1);
-    assert.equal(deliveries[0].authorName, 'Minecraft Server');
+    assert.equal(deliveries[0].authorName, '');
     assert.equal(deliveries[0].sourceGroupName, 'A');
     assert.equal(platform.message(deliveries[0].messageId).sourceMessageId, message.id);
     uninstall();

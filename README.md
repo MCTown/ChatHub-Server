@@ -145,9 +145,12 @@ plugins:
     nodes: []
     blacklist: [private-server, "onebot:123456:987654"]
     include_system: true
+    system_name: "server"
+    hide_system_name: true
 ```
 
 转发功能默认关闭；开启后默认转发玩家、系统账号消息，以及来自 ChatHub OneBot API 的成功应用发送；include_system=false 时仅排除系统消息。
+系统消息默认隐藏转发名字，仅显示 `[来源客户端] 消息内容`；设置 `hide_system_name: false` 可显示名字，`system_name` 默认是 `server`，可自定义。这两个选项也可在管理面板的跨服消息转发设置中修改，保存即时生效并持久化；不影响玩家消息、原始系统账号或实际机器人发送身份。
 nodes 为空且 enabled=true 时转发所有在线 Minecraft / OneBot 群客户端；限定名单时使用
 `onebot:<机器人账号>:<群号>` 加入 OneBot 客户端。
 blacklist 使用相同的客户端 ID；黑名单客户端的消息不向其他客户端转发，也不接收其他客户端的转发，

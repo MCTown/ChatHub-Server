@@ -109,7 +109,9 @@ export class Platform {
     }
 
     async send(groupId: number, segments: Segment[], source?: ChatMessage,
-        observation: {traceId?: string; pluginName?: string; application?: "onebot_api"} = {}): Promise<ChatMessage> {
+        observation: {traceId?: string; pluginName?: string; application?: "onebot_api";
+            /** Display-only override; an empty name hides the author without changing identity. */
+            authorName?: string} = {}): Promise<ChatMessage> {
         // Dashboard and OneBot application sends share the same command entry point.
         // Replies/relays carry a source and must never execute commands recursively.
         if (!source && this.commands.accepts(segments)) {
@@ -123,7 +125,8 @@ export class Platform {
         }
         const session = this.sessions.get(groupId);
         const traceId = source?.traceId ?? observation.traceId ?? this.traces.start(source ? "plugin" : "application",
-            this.preview(segments), {kind: "source", label: source ? "插件投递" : "应用投递"}, {segments});
+            this.preview(segments), {kind: "source", label: source ? "插件投递" : "应用投递",
+                authorName: source ? (observation.authorName ?? source.authorName ?? "插件") : "ChatHub"}, {segments});
         if (!source?.traceId && !observation.traceId) this.traces.add(traceId, "1", {kind: "core", label: "ChatHub Core"}, "accepted");
         const stepId = this.traces.add(traceId, "2", {kind: "delivery", groupId, nodeId: session?.group.nodeId,
             label: `${source ? (observation.pluginName ?? "插件") + " → " : ""}${session?.group.name ?? `群 #${groupId}`}`,
@@ -139,7 +142,7 @@ export class Platform {
             await session.transport.deliver({
                 messageId: message.id,
                 segments: structuredClone(segments),
-                authorName: source?.authorName ?? message.authorName,
+                authorName: observation.authorName ?? source?.authorName ?? message.authorName,
                 sourceGroupName: source ? this.group(source.groupId).name : undefined,
             }, {record: (direction, payload) => {
                 this.traces.add(traceId, stepId, {kind: "delivery", label: direction === "sent" ? "客户端投递报文" : "客户端确认报文",

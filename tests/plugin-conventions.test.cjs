@@ -114,7 +114,7 @@ test('canonical plugin configurations own their schema/defaults, reject unknown 
     assert.equal(config.plugins.onebot.enabled,false);
     assert.equal(config.plugins.onebot.clients_file,path.join(dir,'custom/clients.json'));
     assert.equal(config.onebot_adapter_file,config.plugins.onebot.clients_file);
-    assert.deepEqual(config.plugins.relay,{enabled:true,nodes:[],blacklist:['private'],include_system:true});
+    assert.deepEqual(config.plugins.relay,{enabled:true,nodes:[],blacklist:['private'],include_system:true,system_name:'server',hide_system_name:true});
     assert.deepEqual(config.relay,config.plugins.relay);
     fs.writeFileSync(file,base+'relay: {enabled: true}\nonebot_adapter_file: legacy/clients.json\n');
     config=loadConfig(dir);assert.equal(config.plugins.relay.enabled,true);

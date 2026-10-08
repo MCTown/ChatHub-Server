@@ -44,6 +44,12 @@ class IdentityTests(unittest.TestCase):
 
 
 class RendererTests(unittest.TestCase):
+    def test_hidden_system_name_retains_source_without_empty_brackets(self):
+        command = tellraw_command({"authorName": "", "sourceGroupName": "生存服",
+                                   "segments": [{"type": "text", "text": "Steve died"}]}, {})
+        parts = json.loads(command[len("tellraw @a "):])
+        self.assertEqual("".join(part["text"] for part in parts), "[生存服] Steve died")
+
     def test_untrusted_text_is_json_not_command(self):
         text = '"}]\nstop\n{"text":"'
         command = tellraw_command({"segments": [{"type": "text", "text": text}]}, {})

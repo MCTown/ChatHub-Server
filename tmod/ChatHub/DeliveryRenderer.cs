@@ -12,7 +12,8 @@ public static class DeliveryRenderer
     {
         var text = new StringBuilder();
         if (frame.TryGetProperty("sourceGroupName", out var source)) text.Append('[').Append(Plain(source.GetString() ?? "")).Append("] ");
-        text.Append('<').Append(Plain(frame.GetProperty("authorName").GetString() ?? "ChatHub")).Append("> ");
+        var author = frame.GetProperty("authorName").GetString() ?? "ChatHub";
+        if (author.Length > 0) text.Append('<').Append(Plain(author)).Append("> ");
         foreach (var segment in frame.GetProperty("segments").EnumerateArray())
         {
             switch (segment.GetProperty("type").GetString())

@@ -29,3 +29,5 @@ plugins:
     nodes: [] # empty = all online Minecraft / OneBot clients; otherwise a subset of node IDs
     blacklist: [] # excluded from both sending and receiving relays; overrides nodes
     include_system: true # also relay messages from the virtual Minecraft Server account
+    system_name: "server" # display name for relayed system messages
+    hide_system_name: true # keep [source] but hide <name> for system messages

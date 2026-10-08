@@ -62,6 +62,10 @@ using (var document = JsonDocument.Parse("""{"authorName":"[c/fff:evil]","source
     Check(rendered.Contains("［i:1］") && !rendered.Contains("[c/"), "Remote chat tags must be escaped");
     Check(rendered.Contains("@小明@所有人[图片] https://"), "Mentions and images rendered");
 }
+using (var document = JsonDocument.Parse("""{"authorName":"","sourceGroupName":"跨服","segments":[{"type":"text","text":"系统通知"}]}"""))
+{
+    Check(DeliveryRenderer.Render(document.RootElement, _ => "unused") == "[跨服] 系统通知", "Hidden system name retains source without empty brackets");
+}
 Console.WriteLine("PASS identities, boss accounting, defeat/escape, twins, progress, renderer");
 
 var configDirectory = Path.Combine(Path.GetTempPath(), "chathub-config-test-" + Guid.NewGuid().ToString("N"));

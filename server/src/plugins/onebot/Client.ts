@@ -196,7 +196,8 @@ export class OneBotClient {
         const groupId = this.state.platformGroupId;
         if (groupId === undefined || this.state.status !== "connected") throw new Error("OneBot group offline");
         const message: V11Segment[] = [];
-        if (delivery.sourceGroupName) message.push({type: "text", data: {text: `[${delivery.sourceGroupName}] <${delivery.authorName}> `}});
+        if (delivery.sourceGroupName) message.push({type: "text", data: {text:
+            `[${delivery.sourceGroupName}] ${delivery.authorName ? `<${delivery.authorName}> ` : ""}`}});
         for (const segment of delivery.segments) {
             if (segment.type === "text") message.push({type: "text", data: {text: segment.text}});
             else if (segment.type === "image") message.push({type: "image", data: {file: segment.url}});

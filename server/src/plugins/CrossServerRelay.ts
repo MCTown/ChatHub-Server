@@ -7,6 +7,8 @@ export const relayConfigSchema = z.object({
     nodes: z.array(z.string().trim().min(1)).default([]),
     blacklist: z.array(z.string().trim().min(1)).default([]),
     include_system: z.boolean().default(true),
+    system_name: z.string().trim().min(1).max(80).default("server"),
+    hide_system_name: z.boolean().default(true),
 }).strict();
 
 export interface RelayOptions {
@@ -16,6 +18,8 @@ export interface RelayOptions {
     /** Node IDs excluded as both sources and destinations; takes precedence over nodes. */
     blacklist?: string[];
     include_system?: boolean;
+    system_name?: string;
+    hide_system_name?: boolean;
 }
 
 export function crossServerRelay(options: RelayOptions): PlatformPlugin {
@@ -69,7 +73,9 @@ export function installCrossServerRelay(platform: Platform, options: RelayOption
             // Different bots in the same external group are not different destinations.
             if (source.kind === "onebot" && target.kind === "onebot" &&
                 source.externalGroupId === target.externalGroupId) continue;
-            void platform.send(target.id, message.segments, message, {pluginName: "CrossServerRelay"})
+            void platform.send(target.id, message.segments, message, {pluginName: "CrossServerRelay",
+                ...(message.origin === "system" ? {authorName: options.hide_system_name !== false ? "" :
+                    options.system_name ?? "server"} : {})})
                 .catch(error => console.error(`Relay to ${target.nodeId} failed`, error));
         }
     });

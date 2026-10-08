@@ -113,6 +113,7 @@ startup/shutdown/join/leave/death/advancement，以及 Terraria 的 boss_start/b
 ```
 
 sourceGroupName 为来源客户端名称，转发消息显示为 `[客户端名称] <发送方名> 消息内容`。sourceGroupName 可省略，此时仅显示 `<发送方名> 消息内容`。插件使用 JSON 编码的 `tellraw @a` 展示，不拼接用户输入为控制台命令。
+authorName 为空字符串时隐藏发送方名字（不显示 `<>`），保留来源客户端前缀和消息内容；用于转发插件的 `hide_system_name` 设置。
 
 ```json
 {"type":"delivery_result","request_id":"opaque-id","ok":true}
