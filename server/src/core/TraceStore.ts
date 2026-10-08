@@ -7,6 +7,10 @@ export interface TraceNode {
     kind: "source" | "core" | "delivery" | "onebot" | "plugin";
     groupId?: number;
     nodeId?: string;
+    /** Display-only sender of the source step; never used for routing or identity. */
+    authorName?: string;
+    /** Display-only human-readable source group of the source step. */
+    groupName?: string;
     messageId?: number;
     eventId?: string;
     connectionId?: string;
@@ -54,6 +58,7 @@ export class TraceStore {
         if (!stored) return undefined;
         if (stored.trace.steps.length >= 100) { stored.trace.truncated = true; return undefined; }
         const step: TraceStep = {...node, label: node.label.slice(0, 200), nodeId: node.nodeId?.slice(0, 100),
+            authorName: node.authorName?.slice(0, 100), groupName: node.groupName?.slice(0, 100),
             eventId: node.eventId?.slice(0, 100), pluginName: node.pluginName?.slice(0, 100), action: node.action?.slice(0, 100),
             id: String(stored.nextStep++), parentId, status, timestampMs: Date.now()};
         this.capture(stored, step, payload);

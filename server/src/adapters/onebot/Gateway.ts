@@ -53,7 +53,8 @@ export class OneBotGateway {
             const operation = frame.post_type === "message" ? "OneBot 事件上报" : frame.post_type === "meta_event"
                 ? "OneBot 元事件" : "OneBot API 响应";
             const traceId = requestContext.traceId ?? this.platform.traces.start("onebot_sent", "OneBot 元事件",
-                {kind: "source", label: "ChatHub OneBot", connectionId: context.connectionId}, data);
+                {kind: "source", label: "ChatHub OneBot", connectionId: context.connectionId,
+                    authorName: `ChatHub OneBot · ${role}`}, data);
             const stepId = this.platform.traces.add(traceId, requestContext.traceId ? "2" : "1",
                 {kind: "onebot", label: `${operation} → 应用 · ${role} · ${context.connectionId.slice(0, 8)}`,
                     direction: "sent", connectionId: context.connectionId, action: requestContext.action, groupId: requestContext.groupId},

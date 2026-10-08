@@ -233,7 +233,7 @@ export class Platform {
     private traceIncoming(message: ChatMessage, group: Group, observation?: {eventId: string; payload: unknown}): void {
         const traceId = this.traces.start(message.origin, this.preview(message.segments),
             {kind: "source", label: `${group.name} · ${message.authorName}`, groupId: group.id, nodeId: group.nodeId,
-                messageId: message.id, eventId: observation?.eventId}, observation?.payload ?? message);
+                authorName: message.authorName, groupName: group.name, messageId: message.id, eventId: observation?.eventId}, observation?.payload ?? message);
         message.traceId = traceId;
         this.traces.add(traceId, "1", {kind: "core", label: "ChatHub Core", messageId: message.id}, "accepted");
     }

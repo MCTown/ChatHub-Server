@@ -25,6 +25,7 @@
     users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2m22 0v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/>',
     link: '<path d="M10 13a5 5 0 0 0 7 .1l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7M14 11a5 5 0 0 0-7-.1l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"/>',
     arrow: '<path d="M5 12h14m-5-5 5 5-5 5"/>',
+    chevron: '<path d="m9 6 6 6-6 6"/>',
     search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
     copy: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',
     activity: '<path d="M2 12h5l3-8 4 16 3-8h5"/>',
@@ -187,7 +188,7 @@
   const state = {view:'overview', data:null, paused:false, stale:false, error:'', loading:false,
     messageFilter:'all', messageSearch:'', groupFilter:'all', nodeSearch:'', selectedGroup:null,
     selectedMessage:null, selectedMessageOnebot:false, messageReturnFocus:'',
-    selectedTrace:null,
+    selectedTrace:null, expandedTraces:new Set(),
     logSearch:'', logOrigin:'all', logGroupFilter:'all', selectedPlugin:'onebot', pluginDialogOpen:false, pluginReturnFocus:'',
     adapterDraft:{name:'',address:'',group_id:'',access_token:''},adapterBusy:false,adapterError:'',adapterNotice:'',
     pluginBusy:null,pluginError:'',pluginErrorId:'',configBusy:null,configDrafts:Object.create(null),
@@ -1009,12 +1010,23 @@
     };
     return `<div id="trace-graph-${escape(trace.id)}" class="trace-graph-viewport" tabindex="0" role="region" aria-label="消息链路图，可横向滚动查看；点击节点查看该节点报文"><ol class="trace-graph">${(children.get(undefined)||[]).map(branch).join('')}</ol></div>`;
   }
+  function traceMessageHtml(trace, origin) {
+    const source=trace.steps.find(step=>step.kind==='source');
+    const group=source?.groupName || source?.nodeId || 'ChatHub';
+    const author=(source?.authorName ?? trace.steps[0]?.authorName ?? '').trim() || (origin[trace.origin]||trace.origin);
+    return `[${escape(group)}]${escape(author)}:${escape(trace.preview || '消息链路')}`;
+  }
+  function traceToggle(trace) {
+    const expanded=state.expandedTraces.has(trace.id);
+    return `<button id="trace-toggle-${escape(trace.id)}" class="trace-toggle" type="button" data-trace-toggle="${escape(trace.id)}" aria-expanded="${expanded}"${expanded?` aria-controls="trace-graph-${escape(trace.id)}"`:''} title="${expanded?'收起链路图':'展开链路图'}">${icon('chevron')}<span>${expanded?'收起链路图':'展开链路图'}</span></button>`;
+  }
   function traceCard(message) {
     const trace=message.trace;
     const origin={player:'玩家',system:'系统',application:'应用',plugin:'插件',onebot_received:'OneBot 接收',onebot_sent:'OneBot 发送'};
     const failures=trace.steps.filter(step=>step.status==='failed'||step.status==='timeout').length;
     const branches=trace.steps.filter(step=>step.parentId==='2').length;
-    return `<article class="trace-card" aria-label="消息链路"><div class="trace-card-header"><button class="trace-heading" id="message-open-${escape(trace.id)}" data-message="${escape(trace.id)}" type="button" aria-haspopup="dialog" aria-controls="message-data-dialog" title="查看来源节点的原始内容"><span class="trace-heading-main"><span class="trace-kicker">MESSAGE TRACE <span>${escape(origin[trace.origin]||trace.origin)}</span></span><strong>${escape(trace.preview || '消息链路')}</strong><span class="trace-id">${escape(trace.id.slice(0,8))}${trace.truncated?' · 记录已截断':''}</span></span></button><div class="trace-card-summary"><time datetime="${new Date(trace.timestampMs).toISOString()}">${time(message.time)}</time><span>${trace.steps.length} 个节点 · ${branches} 条分支</span>${failures?pill(`${failures} 个异常`,'red'):''}</div></div>${traceGraph(trace)}<div class="trace-legend"><span>${icon('arrow')}沿箭头查看流向 · 点击节点查看独立报文</span><span class="trace-legend-status"><i class="trace-dot green"></i>已确认 / 接受<i class="trace-dot blue"></i>已发送，未确认处理<i class="trace-dot red"></i>失败 / 超时</span></div></article>`;
+    const expanded=state.expandedTraces.has(trace.id);
+    return `<article class="trace-card${expanded?' trace-card-expanded':''}" aria-label="消息链路"><div class="trace-card-header"><button class="trace-heading" id="message-open-${escape(trace.id)}" data-message="${escape(trace.id)}" type="button" aria-haspopup="dialog" aria-controls="message-data-dialog" title="查看来源节点的原始内容"><span class="trace-heading-main"><span class="trace-kicker">MESSAGE TRACE <span>${escape(origin[trace.origin]||trace.origin)}</span></span><strong>${traceMessageHtml(trace,origin)}</strong><span class="trace-id">${escape(trace.id.slice(0,8))}${trace.truncated?' · 记录已截断':''}</span></span></button><div class="trace-card-summary"><time datetime="${new Date(trace.timestampMs).toISOString()}">${time(message.time)}</time><span>${trace.steps.length} 个节点 · ${branches} 条分支</span>${failures?pill(`${failures} 个异常`,'red'):''}${traceToggle(trace)}</div></div>${expanded?traceGraph(trace):''}<div class="trace-legend"><span>${expanded?`${icon('arrow')}沿箭头查看流向 · 点击节点查看独立报文`:`${icon('chevron')}点击「展开链路图」查看节点与分支`}</span><span class="trace-legend-status"><i class="trace-dot green"></i>已确认 / 接受<i class="trace-dot blue"></i>已发送，未确认处理<i class="trace-dot red"></i>失败 / 超时</span></div></article>`;
   }
   async function openMessageDialog(id, selectedStep) {
     const message = streamMessages().find(message=>String(message.id)===id);
@@ -1379,7 +1391,7 @@
     state.view='overview';state.paused=false;state.selectedGroup=null;
     state.messageFilter='all';state.messageSearch='';state.groupFilter='all';state.nodeSearch='';
     state.selectedMessage=null;state.messageReturnFocus='';
-    traceController?.abort();traceController=null;state.selectedTrace=null;
+    traceController?.abort();traceController=null;state.selectedTrace=null;state.expandedTraces.clear();
     nativeConnection=null;nativeRequested=false;
     state.logSearch='';state.logOrigin='all';state.logGroupFilter='all';
     state.selectedPlugin='onebot';
@@ -1442,6 +1454,12 @@
       try {await navigator.clipboard.writeText(onebotConnection.access_token);toast('OneBot Token 已复制');}
       catch {toast('无法访问剪贴板，请点击“显示”后手动复制 Token 和地址');}
       return;
+    }
+    const traceToggle = event.target.closest('[data-trace-toggle]');
+    if (traceToggle) {
+      const id = traceToggle.dataset.traceToggle;
+      if (state.expandedTraces.has(id)) state.expandedTraces.delete(id); else state.expandedTraces.add(id);
+      renderContent(); return;
     }
     const message = event.target.closest('[data-message]');
     if (message) {openMessageDialog(message.dataset.message,message.dataset.step);return;}

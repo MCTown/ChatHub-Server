@@ -153,6 +153,9 @@ function app(storedToken, {storedTheme, systemDark=false, blockedStorage=false, 
         return document.listeners.click({target});
     };
     const cancelMessage = () => {let prevented=false;get('message-data-dialog').listeners.cancel({preventDefault(){prevented=true;}});return prevented;};
+    const toggleTrace = id => {const target=get(`trace-toggle-${id}`);target.dataset.traceToggle=id;
+        target.closest=selector=>selector==='[data-trace-toggle]'?target:null;
+        document.listeners.click({target});};
     const onebotAction = (selector='[data-onebot-connection]', {key,id='onebot-stat-open'}={}) => {
         const target=get(selector.startsWith('#')?selector.slice(1):id);
         target.closest=match=>match===selector || key&&match==='[data-onebot-connection][role="button"]'?target:null;
@@ -214,7 +217,7 @@ function app(storedToken, {storedTheme, systemDark=false, blockedStorage=false, 
     const chatImage = (file={name:'pixel.png',size:68,type:'image/png'}) => {const target=get('[data-qq-image]');target.files=[file];get('view-content').listeners.change({target});return readers.at(-1);};
     const readImage = (reader,data='data:image/png;base64,cGl4ZWw=') => {reader.result=data;reader.onload();};
     return {get,storage,requests,intervals,document,submit,respond,changeSystemTheme,changeReducedMotion,navigate,selectPlugin,togglePlugin,closePlugin,cancelPlugin,copyConfig,clipboard,inputAdapter:inputField,inputField,logOrigin,logGroup,submitAdapter,removeAdapter,
-         entries,history,location,historyCalls,scrolls,inputConfig,submitConfig,configButton,messageAction,cancelMessage,onebotAction,cancelOnebot,
+         entries,history,location,historyCalls,scrolls,inputConfig,submitConfig,configButton,messageAction,cancelMessage,toggleTrace,onebotAction,cancelOnebot,
             transitions,clickTheme,finishAnimation,finishClose,flushSettings,blurSettings,composeSettings,settingsTimers,advanceFrames,finishZoom,frames,
             chatInput,chatClick,chatKey,chatComposition,chatSubmit,chatImage,readImage,readers,chatTimers};
 }
@@ -571,7 +574,7 @@ function traceSnapshot() {
     const id='00000000-0000-4000-8000-000000000001', timestampMs=1700000000000;
     const d=snapshot();
     d.traces=[{id,timestampMs,origin:'player',preview:'<help>',truncated:false,steps:[
-        {id:'1',kind:'source',label:'A · Steve',nodeId:'a',groupId:100,messageId:42,eventId:'event-help',timestampMs,status:'received'},
+        {id:'1',kind:'source',label:'A · Steve',nodeId:'a',groupName:'A',authorName:'Steve',groupId:100,messageId:42,eventId:'event-help',timestampMs,status:'received'},
         {id:'2',parentId:'1',kind:'core',label:'ChatHub Core',timestampMs,status:'accepted'},
         {id:'3',parentId:'2',kind:'delivery',label:'CrossServerRelay → B',groupId:101,nodeId:'b',pluginName:'CrossServerRelay',timestampMs,status:'confirmed',durationMs:12},
         {id:'4',parentId:'2',kind:'delivery',label:'CrossServerRelay → C',groupId:102,nodeId:'c',pluginName:'CrossServerRelay',timestampMs,status:'timeout',error:'<unsafe> timeout'},
@@ -589,6 +592,14 @@ test('trace stream folds branches into a single escaped card, filters descendant
     await ui.respond(0,200,d);
     let html=ui.get('view-content').innerHTML;
     assert.equal((html.match(/class="trace-card"/g)||[]).length,1);
+    // Node graph is folded by default and only appears after an explicit toggle.
+    assert.doesNotMatch(html,/class="trace-graph"/);
+    assert.match(html,/data-trace-toggle="/);assert.match(html,/aria-expanded="false"/);
+    // Each message shows its [source] sender prefix.
+    assert.match(html,/\[A\]Steve:&lt;help&gt;/);
+    ui.toggleTrace(trace.id);
+    html=ui.get('view-content').innerHTML;
+    assert.match(html,/trace-card-expanded/);assert.match(html,/aria-expanded="true"/);
     assert.match(html,/ChatHub Core/);assert.match(html,/CrossServerRelay → B/);
     assert.match(html,/12 ms/);assert.match(html,/已发送（未确认处理）/);
     assert.match(html,/class="trace-graph"/);assert.match(html,/class="trace-branches"/);
@@ -600,14 +611,14 @@ test('trace stream folds branches into a single escaped card, filters descendant
     const filter=ui.get('trace-filter');filter.dataset.filter='application';
     filter.closest=selector=>selector==='[data-filter]'?filter:null;
     ui.document.listeners.click({target:filter});
-    assert.doesNotMatch(ui.get('view-content').innerHTML,/class="trace-card"/);
+    assert.doesNotMatch(ui.get('view-content').innerHTML,/class="trace-card/);
     filter.dataset.filter='onebot_sent';
     ui.document.listeners.click({target:filter});
-    assert.match(ui.get('view-content').innerHTML,/class="trace-card"/);
+    assert.match(ui.get('view-content').innerHTML,/class="trace-card/);
     ui.get('group-filter').value='101';ui.document.listeners.change({target:ui.get('group-filter')});
-    assert.match(ui.get('view-content').innerHTML,/class="trace-card"/);
+    assert.match(ui.get('view-content').innerHTML,/class="trace-card/);
     ui.inputField('message-search','event-help');
-    assert.match(ui.get('view-content').innerHTML,/class="trace-card"/);
+    assert.match(ui.get('view-content').innerHTML,/class="trace-card/);
     ui.messageAction('[data-message]',trace.id);
     assert.equal(ui.requests.length,2);
     assert.equal(ui.requests[1].url,`/api/traces/${trace.id}`);
@@ -632,6 +643,7 @@ test('every graph node opens only its own raw payload, including ACK children an
     const ui=app('dashboard',{initialPath:'/messages',reducedMotion:true}),d=traceSnapshot(),trace=d.traces[0];
     trace.steps.push({id:'7',parentId:'3',kind:'delivery',label:'客户端确认报文',direction:'received',timestampMs:trace.timestampMs,status:'received'});
     await ui.respond(0,200,d);
+    ui.toggleTrace(trace.id);
     assert.match(ui.get('view-content').innerHTML,/data-step="7"/);
     assert.match(ui.get('view-content').innerHTML,/trace-wire-node/);
     const detail=structuredClone(trace);
@@ -665,6 +677,7 @@ test('every graph node opens only its own raw payload, including ACK children an
 test('graph horizontal scroll survives polling and missing nodes never fall back to another payload',async()=>{
     const ui=app('dashboard',{initialPath:'/messages',reducedMotion:true}),d=traceSnapshot(),id=d.traces[0].id;
     await ui.respond(0,200,d);
+    ui.toggleTrace(id);
     const graph=ui.get(`trace-graph-${id}`);graph.scrollLeft=286;
     ui.intervals[0]();await ui.respond(1,200,d);
     assert.equal(graph.scrollLeft,286);
