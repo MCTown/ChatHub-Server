@@ -1,5 +1,7 @@
 # 本机部署：2 个 MC 服务端 + ChatHub
 
+> 本目录脚本用于本机演示环境，不是生产部署流程。生产服务器为 `ubuntu@192.168.31.236`，应用目录 `/opt/chathub`，由 `chathub.service` 管理。生产升级见 [production.md](production.md)。本文中的旧公网 SSH 地址仅属于演示环境。
+
 一台机器上运行：
 
 ```text
