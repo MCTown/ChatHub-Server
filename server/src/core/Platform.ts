@@ -3,6 +3,7 @@ import {randomInt} from "node:crypto";
 import {ChatMessage, DeliveryFailureLog, Group, Member, NodeTransport, Participant, PlatformEvent, Segment} from "../domain/model";
 import {IdentityDirectory} from "./ports";
 import {TraceStore} from "./TraceStore";
+import {CommandSystem} from "./CommandSystem";
 
 interface Session {
     group: Group;
@@ -16,6 +17,7 @@ export class PlatformError extends Error {
 /** Chat platform core. No OneBot payloads, WebSocket or file IO here. */
 export class Platform {
     readonly traces = new TraceStore();
+    readonly commands = new CommandSystem(this);
     readonly botId = 1;
     readonly systemId = 2;
     readonly systemName = "Minecraft Server";
@@ -90,6 +92,7 @@ export class Platform {
         const message = this.create(groupId, member.userId, member.name, segments, "player");
         this.traceIncoming(message, group, observation);
         this.remember(message);
+        if (this.commands.dispatch(message)) return message;
         this.emit({type: "message", message});
         return message;
     }
@@ -107,6 +110,17 @@ export class Platform {
 
     async send(groupId: number, segments: Segment[], source?: ChatMessage,
         observation: {traceId?: string; pluginName?: string; application?: "onebot_api"} = {}): Promise<ChatMessage> {
+        // Dashboard and OneBot application sends share the same command entry point.
+        // Replies/relays carry a source and must never execute commands recursively.
+        if (!source && this.commands.accepts(segments)) {
+            const group = this.group(groupId);
+            const command = this.create(groupId, this.botId, "ChatHub", segments, "application");
+            if (observation.traceId) command.traceId = observation.traceId;
+            else this.traceIncoming(command, group);
+            this.remember(command);
+            this.commands.dispatch(command);
+            return command;
+        }
         const session = this.sessions.get(groupId);
         const traceId = source?.traceId ?? observation.traceId ?? this.traces.start(source ? "plugin" : "application",
             this.preview(segments), {kind: "source", label: source ? "插件投递" : "应用投递"}, {segments});

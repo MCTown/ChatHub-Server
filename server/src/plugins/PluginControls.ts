@@ -21,7 +21,7 @@ export class PluginControls {
     private readonly store: JsonConfigStore<PluginStateFile>;
     private started = false;
 
-    constructor(platform: Platform, private readonly registry: PluginRegistry, file?: string) {
+    constructor(private readonly platform: Platform, private readonly registry: PluginRegistry, file?: string) {
         this.host = new PluginHost(platform);
         registry.seal();
         const enabled = z.object(Object.fromEntries(registry.all().map(entry =>
@@ -94,6 +94,7 @@ export class PluginControls {
             const states = this.states();
             for (const entry of this.registry.all()) {
                 entry.instance.setEnabled(states[entry.manifest.id]);
+                this.platform.commands.setEnabled(entry.manifest.id, states[entry.manifest.id]);
                 this.host.use(entry.instance);
             }
             this.started = true;
@@ -120,6 +121,7 @@ export class PluginControls {
             throw new PluginError("插件切换失败，请检查服务端日志。", 500);
         }
         this.overrides = next;
+        this.platform.commands.setEnabled(id, enabled);
     }
 
     close(): void { this.host.close(); this.started = false; }

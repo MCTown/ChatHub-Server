@@ -1,7 +1,10 @@
 import {Platform} from "../core/Platform";
+import {CommandDefinition} from "../core/CommandSystem";
 
 export interface PlatformPlugin {
     name: string;
+    /** Registered atomically on installation and removed automatically on cleanup. */
+    commands?: readonly CommandDefinition[];
     /** Trusted business plugins or client adapters; cleanup owns all resources. */
     install(platform: Platform): () => void;
 }
@@ -14,9 +17,15 @@ export class PluginHost {
 
     use(plugin: PlatformPlugin): void {
         if (this.installed.has(plugin.name)) throw new Error(`Plugin already installed: ${plugin.name}`);
-        const dispose = plugin.install(this.platform);
-        if (typeof dispose !== "function") throw new Error(`Plugin ${plugin.name} must return a cleanup function`);
-        this.installed.set(plugin.name, dispose);
+        const unregister: Array<() => void> = [];
+        try {
+            for (const command of plugin.commands ?? []) unregister.push(this.platform.commands.register(plugin.name, command));
+            const dispose = plugin.install(this.platform);
+            if (typeof dispose !== "function") throw new Error(`Plugin ${plugin.name} must return a cleanup function`);
+            this.installed.set(plugin.name, () => {
+                try { dispose(); } finally { unregister.forEach(cleanup => cleanup()); }
+            });
+        } catch (error) { unregister.forEach(cleanup => cleanup()); throw error; }
     }
 
     remove(name: string): boolean {

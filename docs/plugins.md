@@ -188,3 +188,42 @@ Minecraft 使用节点 node_id，OneBot 使用 `onebot:<机器人账号>:<群号
 跨服转发的开关可即时切换，关闭时卸载订阅，开启时重新订阅，不累积重复订阅；网页开关保存到 plugin_state_file，优先于 plugins.relay.enabled 初始配置。
 不同机器人对应同一个外部 QQ 群时不直接在这些客户端间转发。
 plugins.relay.include_system=false 可只转发玩家聊天；识别 Minecraft 日志不属于转发插件的职责。
+
+## 9. 指令系统
+
+平台内置 `platform.commands`。客户端在聊天中直接发送 `help` 或 `指令名 参数`，无需斜杠或其他前缀。
+只匹配纯文本消息的第一个完整单词，指令名不区分大小写，首尾空白会忽略；未注册、已禁用、
+含图片 / mention 的消息仍走普通聊天。系统通知不执行指令。
+原生 MCDR / Terraria、OneBot 群客户端入站，以及网页群聊 / OneBot API 发送均支持。
+指令请求保留在消息历史中，但不发布普通聊天或应用事件，因此不会跨服转发或交给应用网关重复处理。
+回复仅广播到来源客户端，不是私聊；回复不会递归触发指令。
+API 发送指令时返回指令请求的 message_id，表示请求已接受；处理器与回复投递异步执行，最终回复另有 message_id。
+
+插件通过可选 `commands` 字段声明指令，由 PluginHost 自动注册与清理：
+
+```ts
+const plugin: PlatformPlugin = {
+    name: "example",
+    commands: [{
+        name: "echo",
+        description: "回显文本",
+        usage: "<text>",
+        async execute({message, args, rawArgs, reply, platform}) {
+            await reply(rawArgs || "用法：echo <text>");
+        },
+    }],
+    install: platform => () => {},
+};
+```
+
+指令名匹配 `^[a-z][a-z0-9_-]*$`，全平台唯一；`help`、`online` 为核心保留指令。
+`online` 列出所有已连接的游戏服务器（Minecraft / Terraria），每服显示名称、nodeId、在线人数和玩家名单；
+仅统计最近同步状态中 online=true 的真实成员，不包含 OneBot 群成员、虚拟机器人或系统账号。
+空服务器显示“暂无在线玩家”，没有游戏服务器时返回提示；从任何客户端调用都仅回复来源客户端。
+重复名称拒绝安装，部分注册会回滚；插件卸载时自动清理声明的指令，托管插件关闭时指令从 help 隐藏且不可调用。
+`message` 包含来源 groupId、authorId、authorName；`args` 按空白分词（不解析引号），`rawArgs` 保留参数内部空白。
+`reply` 接受字符串或 `Segment[]`，返回投递 Promise，处理器应等待它；异常记录到服务端日志并返回不含内部错误的提示。
+指令默认对所有客户端用户开放，敏感操作需处理器按身份自行鉴权。
+
+动态注册也可使用 `platform.commands.register(pluginId, definition)`，返回注销函数；
+此方式的清理由插件自行负责，pluginId 应与实例 name 一致，以便托管开关同步生效。

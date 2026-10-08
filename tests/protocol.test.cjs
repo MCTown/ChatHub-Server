@@ -69,6 +69,22 @@ async function node(url, nodeId = 'survival', players = [player]) {
     return inbox;
 }
 
+test('native clients invoke prefix-free help with normal chat and receive acknowledged replies', async t => {
+    const {url, platform} = await fixture(t);
+    const native = await node(url);
+    const events = [];
+    platform.subscribe(event => events.push(event));
+    native.send({type: 'chat', event_id: 'help-command', player, segments: [{type: 'text', text: 'help'}]});
+    const accepted = await native.next(frame => frame.type === 'accepted');
+    const delivery = await native.next(frame => frame.type === 'deliver');
+    assert.match(delivery.segments[0].text, /help — 显示所有可用指令/);
+    native.send({type: 'delivery_result', request_id: delivery.request_id, ok: true});
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(platform.message(delivery.messageId).sourceMessageId, accepted.message_id);
+    assert.deepEqual(events, []);
+    native.socket.close();
+});
+
 test('Terraria Unicode character names, system reports and deliveries use native v2', async t => {
     const {url, platform} = await fixture(t);
     const character = {uuid: '9d155751642748ce92fa10444c93032b', name: '小明 One'};
